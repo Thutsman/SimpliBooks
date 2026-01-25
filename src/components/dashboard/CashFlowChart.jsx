@@ -75,6 +75,20 @@ const CashFlowChart = () => {
     )
   }
 
+  // Calculate max value for Y-axis domain
+  const maxValue = Math.max(
+    ...chartData.map((d) => Math.max(d.income || 0, d.expenses || 0)),
+    1000 // Minimum scale of 1000 when no data
+  )
+
+  // Format Y-axis ticks properly
+  const formatYAxis = (value) => {
+    if (value === 0) return '0'
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
+    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`
+    return value.toString()
+  }
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -119,7 +133,9 @@ const CashFlowChart = () => {
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#6b7280', fontSize: 12 }}
-              tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              tickFormatter={formatYAxis}
+              domain={[0, maxValue]}
+              allowDataOverflow={false}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area
