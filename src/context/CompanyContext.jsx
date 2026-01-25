@@ -22,80 +22,24 @@ export const CompanyProvider = ({ children }) => {
         return []
       }
 
-      console.log('Fetching companies for user:', user.id, user.email)
-      
-      try {
-        // Create a timeout wrapper function
-        const withTimeout = (promise, timeoutMs, errorMessage) => {
-          return Promise.race([
-            promise,
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
-            )
-          ])
-        }
+      console.log('Fetching companies for user:', user.id)
 
-        // Query companies directly (user is already authenticated via AuthContext)
-        console.log('Querying companies...')
-        const queryStartTime = Date.now()
-        
-        // Query with timeout
-        const queryPromise = supabase
-          .from('companies')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true })
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
 
-        const { data, error } = await withTimeout(
-          queryPromise,
-          15000,
-          'Database query timed out after 15 seconds'
-        )
-
-        const queryDuration = Date.now() - queryStartTime
-        console.log(`Query completed in ${queryDuration}ms`)
-
-        if (error) {
-          console.error('Error fetching companies:', error)
-          console.error('Error code:', error.code)
-          console.error('Error message:', error.message)
-          console.error('Error hint:', error.hint)
-          
-          // Check for specific error types
-          if (error.code === 'PGRST116') {
-            console.log('No companies found (this is normal for new users)')
-            return []
-          }
-          
-          throw error
-        }
-        
-        console.log('Companies fetched successfully:', data?.length || 0, 'companies')
-        if (data && data.length > 0) {
-          console.log('Company names:', data.map(c => c.name))
-        } else {
-          console.log('No companies found - user needs to create one')
-        }
-        
-        return data || []
-      } catch (err) {
-        console.error('Exception in companies query:', err)
-        console.error('Error stack:', err.stack)
-        if (err.message?.includes('timeout')) {
-          console.error('Query timed out - this might indicate a network or RLS policy issue')
-          throw new Error('Request timed out. Please check your internet connection and Supabase RLS policies.')
-        }
-        throw err
+      if (error) {
+        console.error('Error fetching companies:', error)
+        throw error
       }
+
+      console.log('Companies fetched:', data?.length || 0)
+      return data || []
     },
     enabled: !!user,
-    retry: (failureCount, error) => {
-      // Don't retry on timeout errors
-      if (error?.message?.includes('timeout')) {
-        return false
-      }
-      return failureCount < 1 // Only retry once
-    },
+    retry: 1,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })

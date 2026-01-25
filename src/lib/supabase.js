@@ -18,6 +18,14 @@ export const supabase = createClient(
       persistSession: true,
       detectSessionInUrl: true,
     },
+    global: {
+      headers: {
+        'X-Client-Info': 'simplibooks-web',
+      },
+    },
+    db: {
+      schema: 'public',
+    },
   }
 )
 
