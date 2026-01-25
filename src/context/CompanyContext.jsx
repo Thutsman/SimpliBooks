@@ -25,42 +25,41 @@ export const CompanyProvider = ({ children }) => {
       console.log('Fetching companies for user:', user.id, user.email)
       
       try {
-        // Verify session before querying
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        if (sessionError) {
-          console.error('Session error:', sessionError)
-          throw new Error(`Session error: ${sessionError.message}`)
+        // Create a timeout wrapper function
+        const withTimeout = (promise, timeoutMs, errorMessage) => {
+          return Promise.race([
+            promise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+            )
+          ])
         }
-        if (!session) {
-          console.error('No session found')
-          throw new Error('No active session. Please sign in again.')
-        }
+
+        // Query companies directly (user is already authenticated via AuthContext)
+        console.log('Querying companies...')
+        const queryStartTime = Date.now()
         
-        console.log('Session verified, querying companies...')
-        console.log('Query start time:', new Date().toISOString())
-        
-        // Query with timeout wrapper
+        // Query with timeout
         const queryPromise = supabase
           .from('companies')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: true })
 
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Query timeout after 15 seconds')), 15000)
-        })
+        const { data, error } = await withTimeout(
+          queryPromise,
+          15000,
+          'Database query timed out after 15 seconds'
+        )
 
-        const result = await Promise.race([queryPromise, timeoutPromise])
-        const { data, error } = result
-
-        console.log('Query completed at:', new Date().toISOString())
+        const queryDuration = Date.now() - queryStartTime
+        console.log(`Query completed in ${queryDuration}ms`)
 
         if (error) {
           console.error('Error fetching companies:', error)
           console.error('Error code:', error.code)
           console.error('Error message:', error.message)
           console.error('Error hint:', error.hint)
-          console.error('Error details:', JSON.stringify(error, null, 2))
           
           // Check for specific error types
           if (error.code === 'PGRST116') {
@@ -81,6 +80,7 @@ export const CompanyProvider = ({ children }) => {
         return data || []
       } catch (err) {
         console.error('Exception in companies query:', err)
+        console.error('Error stack:', err.stack)
         if (err.message?.includes('timeout')) {
           console.error('Query timed out - this might indicate a network or RLS policy issue')
           throw new Error('Request timed out. Please check your internet connection and Supabase RLS policies.')
@@ -90,8 +90,8 @@ export const CompanyProvider = ({ children }) => {
     },
     enabled: !!user,
     retry: (failureCount, error) => {
-      // Don't retry on timeout or auth errors
-      if (error?.message?.includes('timeout') || error?.message?.includes('session')) {
+      // Don't retry on timeout errors
+      if (error?.message?.includes('timeout')) {
         return false
       }
       return failureCount < 1 // Only retry once

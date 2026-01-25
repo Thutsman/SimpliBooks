@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { BookOpen, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -13,12 +13,22 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  const { signIn, signInWithGoogle } = useAuth()
+  const { signIn, signInWithGoogle, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
 
   const from = location.state?.from?.pathname || '/dashboard'
+
+  // Navigate when user becomes available after login
+  useEffect(() => {
+    if (user && (loading || googleLoading)) {
+      setLoading(false)
+      setGoogleLoading(false)
+      toast.success('Welcome back!')
+      navigate(from, { replace: true })
+    }
+  }, [user, loading, googleLoading, navigate, from, toast])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -29,10 +39,8 @@ const Login = () => {
     if (error) {
       toast.error(error.message)
       setLoading(false)
-    } else {
-      toast.success('Welcome back!')
-      navigate(from, { replace: true })
     }
+    // Don't navigate here - let useEffect handle it when user state updates
   }
 
   const handleGoogleSignIn = async () => {
@@ -42,6 +50,7 @@ const Login = () => {
       toast.error(error.message)
       setGoogleLoading(false)
     }
+    // Don't navigate here - OAuth redirects will handle navigation
   }
 
   return (

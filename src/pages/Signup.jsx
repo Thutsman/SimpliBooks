@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -14,7 +14,6 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
 
   const { signUp, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
@@ -36,7 +35,8 @@ const Signup = () => {
       toast.error(error.message)
       setLoading(false)
     } else {
-      setSuccess(true)
+      toast.success('Account created successfully!')
+      navigate('/dashboard')
     }
   }
 
@@ -47,28 +47,6 @@ const Signup = () => {
       toast.error(error.message)
       setGoogleLoading(false)
     }
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-8 bg-gray-50">
-        <div className="w-full max-w-md text-center">
-          <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-8 h-8 text-accent-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Check your email
-          </h1>
-          <p className="text-gray-600 mb-8">
-            We've sent a verification link to <strong>{email}</strong>. Click
-            the link to verify your account and get started.
-          </p>
-          <Link to="/login">
-            <Button variant="outline">Back to Sign In</Button>
-          </Link>
-        </div>
-      </div>
-    )
   }
 
   return (

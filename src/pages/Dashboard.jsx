@@ -58,8 +58,9 @@ const Dashboard = () => {
   if (companiesLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
-        <p className="text-gray-600">Loading your companies...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-600 mb-4"></div>
+        <p className="text-gray-600 mb-2">Loading your companies...</p>
+        <p className="text-sm text-gray-500">This may take a few moments</p>
       </div>
     )
   }
@@ -79,7 +80,7 @@ const Dashboard = () => {
         </p>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          className="px-4 py-2 bg-accent-600 text-white rounded-lg hover:bg-accent-700"
         >
           Refresh Page
         </button>
@@ -91,8 +92,8 @@ const Dashboard = () => {
   if (companies.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mb-6">
-          <FileText className="w-10 h-10 text-primary-600" />
+        <div className="w-20 h-20 bg-accent-100 rounded-full flex items-center justify-center mb-6">
+          <FileText className="w-10 h-10 text-accent-600" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Welcome to SimpliBooks
