@@ -84,15 +84,12 @@ const Hero = () => {
                 </div>
               </div>
             </div>
-            <div className="aspect-[16/9] bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-8 h-8 text-accent-600" />
-                </div>
-                <p className="text-gray-500 text-lg">
-                  Your powerful dashboard preview
-                </p>
-              </div>
+            <div className="bg-gray-50">
+              <img
+                src="/1769353591268.png"
+                alt="SimpliBooks Dashboard Preview"
+                className="w-full h-auto"
+              />
             </div>
           </div>
         </div>
