@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -15,9 +15,16 @@ const Signup = () => {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  const { signUp, signInWithGoogle } = useAuth()
+  const { signUp, signInWithGoogle, user } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [user, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

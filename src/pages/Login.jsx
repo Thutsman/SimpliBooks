@@ -20,15 +20,12 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || '/dashboard'
 
-  // Navigate when user becomes available after login
+  // Redirect if already logged in
   useEffect(() => {
-    if (user && (loading || googleLoading)) {
-      setLoading(false)
-      setGoogleLoading(false)
-      toast.success('Welcome back!')
+    if (user) {
       navigate(from, { replace: true })
     }
-  }, [user, loading, googleLoading, navigate, from, toast])
+  }, [user, navigate, from])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -39,8 +36,10 @@ const Login = () => {
     if (error) {
       toast.error(error.message)
       setLoading(false)
+    } else {
+      toast.success('Welcome back!')
+      navigate(from, { replace: true })
     }
-    // Don't navigate here - let useEffect handle it when user state updates
   }
 
   const handleGoogleSignIn = async () => {
@@ -50,7 +49,7 @@ const Login = () => {
       toast.error(error.message)
       setGoogleLoading(false)
     }
-    // Don't navigate here - OAuth redirects will handle navigation
+    // OAuth redirects handle navigation
   }
 
   return (
