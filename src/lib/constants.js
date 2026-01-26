@@ -3,6 +3,7 @@ export const DEFAULT_ACCOUNTS = [
   // Assets
   { code: '1000', name: 'Bank Account', type: 'asset', sub_type: 'current_asset', is_system: true },
   { code: '1100', name: 'Accounts Receivable', type: 'asset', sub_type: 'current_asset', is_system: true },
+  { code: '1150', name: 'VAT Input (Claimable)', type: 'asset', sub_type: 'current_asset', is_system: true },
   { code: '1200', name: 'Inventory', type: 'asset', sub_type: 'current_asset', is_system: false },
   { code: '1300', name: 'Prepaid Expenses', type: 'asset', sub_type: 'current_asset', is_system: false },
   { code: '1500', name: 'Equipment', type: 'asset', sub_type: 'fixed_asset', is_system: false },

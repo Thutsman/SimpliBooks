@@ -24,6 +24,10 @@ export const useClients = () => {
 
   const createClient = useMutation({
     mutationFn: async (clientData) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected. Please select or create a company first.')
+      }
+
       const { data, error } = await supabase
         .from('clients')
         .insert({
@@ -33,7 +37,10 @@ export const useClients = () => {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Client creation error:', error)
+        throw new Error(error.message || 'Failed to create client')
+      }
       return data
     },
     onSuccess: () => {
@@ -43,6 +50,10 @@ export const useClients = () => {
 
   const updateClient = useMutation({
     mutationFn: async ({ id, ...data }) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected')
+      }
+
       const { data: client, error } = await supabase
         .from('clients')
         .update(data)
@@ -50,7 +61,10 @@ export const useClients = () => {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Client update error:', error)
+        throw new Error(error.message || 'Failed to update client')
+      }
       return client
     },
     onSuccess: () => {
@@ -60,13 +74,20 @@ export const useClients = () => {
 
   const deleteClient = useMutation({
     mutationFn: async (id) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected')
+      }
+
       // Soft delete by setting is_active to false
       const { error } = await supabase
         .from('clients')
         .update({ is_active: false })
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Client delete error:', error)
+        throw new Error(error.message || 'Failed to delete client')
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients', activeCompanyId] })

@@ -65,8 +65,6 @@ export const useInvoices = (filters = {}) => {
       .from('invoices')
       .select('invoice_number')
       .eq('company_id', activeCompanyId)
-      .order('created_at', { ascending: false })
-      .limit(1)
 
     if (error) throw error
 
@@ -74,14 +72,29 @@ export const useInvoices = (filters = {}) => {
       return 'INV-0001'
     }
 
-    const lastNumber = data[0].invoice_number
-    const match = lastNumber.match(/INV-(\d+)/)
-    if (match) {
-      const nextNum = parseInt(match[1], 10) + 1
-      return `INV-${String(nextNum).padStart(4, '0')}`
+    // Extract all numeric values from invoice numbers
+    // Handle formats like: INV-0001, Inv-0001, INV0001, 0001, 002, etc.
+    let maxNum = 0
+    for (const invoice of data) {
+      const invoiceNum = invoice.invoice_number || ''
+      // Try to match INV-#### or Inv-#### (case-insensitive)
+      let match = invoiceNum.match(/inv-(\d+)/i)
+      if (match) {
+        const num = parseInt(match[1], 10)
+        if (num > maxNum) maxNum = num
+      } else {
+        // Try to match just numbers at the end (e.g., "002", "0001")
+        match = invoiceNum.match(/(\d+)$/)
+        if (match) {
+          const num = parseInt(match[1], 10)
+          if (num > maxNum) maxNum = num
+        }
+      }
     }
 
-    return `INV-0001`
+    // Increment and format
+    const nextNum = maxNum + 1
+    return `INV-${String(nextNum).padStart(4, '0')}`
   }
 
   const createInvoice = useMutation({

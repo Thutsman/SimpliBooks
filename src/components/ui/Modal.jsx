@@ -49,7 +49,7 @@ const Modal = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
       onClick={handleBackdropClick}
     >
       <div
@@ -58,11 +58,12 @@ const Modal = ({
           w-full ${sizes[size]} bg-white rounded-xl shadow-xl
           transform transition-all duration-200
           animate-in fade-in-0 zoom-in-95
+          my-8 max-h-[calc(100vh-4rem)] flex flex-col
         `}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-start justify-between p-6 border-b border-gray-100">
+          <div className="flex items-start justify-between p-6 border-b border-gray-100 flex-shrink-0">
             <div>
               {title && (
                 <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
@@ -83,7 +84,7 @@ const Modal = ({
         )}
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   )

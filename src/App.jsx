@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import Onboarding from './pages/Onboarding'
 import DashboardLayout from './components/dashboard/DashboardLayout'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
@@ -34,6 +35,16 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Onboarding - protected but skips onboarding check */}
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute skipOnboardingCheck>
+                <Onboarding />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Protected dashboard routes */}
           <Route

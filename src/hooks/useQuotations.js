@@ -65,23 +65,36 @@ export const useQuotations = (filters = {}) => {
       .from('quotations')
       .select('quotation_number')
       .eq('company_id', activeCompanyId)
-      .order('created_at', { ascending: false })
-      .limit(1)
 
     if (error) throw error
 
     if (data.length === 0) {
-      return 'QUO-0001'
+      return 'QTN-0001'
     }
 
-    const lastNumber = data[0].quotation_number
-    const match = lastNumber.match(/QUO-(\d+)/)
-    if (match) {
-      const nextNum = parseInt(match[1], 10) + 1
-      return `QUO-${String(nextNum).padStart(4, '0')}`
+    // Extract all numeric values from quotation numbers
+    // Handle formats like: QTN-0001, Qtn-0001, QUO-0001, QTN0001, 0001, etc.
+    let maxNum = 0
+    for (const quotation of data) {
+      const quotationNum = quotation.quotation_number || ''
+      // Try to match QTN-#### or Qtn-#### or QUO-#### (case-insensitive)
+      let match = quotationNum.match(/(?:qtn|quo)-(\d+)/i)
+      if (match) {
+        const num = parseInt(match[1], 10)
+        if (num > maxNum) maxNum = num
+      } else {
+        // Try to match just numbers at the end (e.g., "002", "0001")
+        match = quotationNum.match(/(\d+)$/)
+        if (match) {
+          const num = parseInt(match[1], 10)
+          if (num > maxNum) maxNum = num
+        }
+      }
     }
 
-    return `QUO-0001`
+    // Increment and format
+    const nextNum = maxNum + 1
+    return `QTN-${String(nextNum).padStart(4, '0')}`
   }
 
   const createQuotation = useMutation({
@@ -211,20 +224,33 @@ export const useQuotations = (filters = {}) => {
       if (itemsError) throw itemsError
 
       // Get next invoice number
-      const { data: lastInvoice } = await supabase
+      const { data: allInvoices } = await supabase
         .from('invoices')
         .select('invoice_number')
         .eq('company_id', activeCompanyId)
-        .order('created_at', { ascending: false })
-        .limit(1)
 
       let invoiceNumber = 'INV-0001'
-      if (lastInvoice && lastInvoice.length > 0) {
-        const match = lastInvoice[0].invoice_number.match(/INV-(\d+)/)
-        if (match) {
-          const nextNum = parseInt(match[1], 10) + 1
-          invoiceNumber = `INV-${String(nextNum).padStart(4, '0')}`
+      if (allInvoices && allInvoices.length > 0) {
+        // Extract all numeric values from invoice numbers
+        let maxNum = 0
+        for (const invoice of allInvoices) {
+          const invoiceNum = invoice.invoice_number || ''
+          // Try to match INV-#### or Inv-#### (case-insensitive)
+          let match = invoiceNum.match(/inv-(\d+)/i)
+          if (match) {
+            const num = parseInt(match[1], 10)
+            if (num > maxNum) maxNum = num
+          } else {
+            // Try to match just numbers at the end (e.g., "002", "0001")
+            match = invoiceNum.match(/(\d+)$/)
+            if (match) {
+              const num = parseInt(match[1], 10)
+              if (num > maxNum) maxNum = num
+            }
+          }
         }
+        const nextNum = maxNum + 1
+        invoiceNumber = `INV-${String(nextNum).padStart(4, '0')}`
       }
 
       // Create invoice

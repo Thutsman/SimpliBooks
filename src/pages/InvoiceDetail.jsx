@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Save, Printer } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, Printer, UserPlus } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
 import { useClients } from '../hooks/useClients'
 import { useAccounts } from '../hooks/useAccounts'
@@ -9,6 +9,7 @@ import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Select, Textarea } from '../components/ui/Input'
+import Modal from '../components/ui/Modal'
 import { formatCurrency, getDefaultVATRate } from '../lib/constants'
 import { VATRateInlineSelect } from '../components/ui/VATRateSelect'
 import { format, addDays } from 'date-fns'
@@ -20,8 +21,16 @@ const InvoiceDetail = () => {
   const isNew = !id || id === 'new'
 
   const { activeCompany } = useCompany()
-  const { clients } = useClients()
+  const { clients, createClient, isCreating: isCreatingClient } = useClients()
   const { accounts } = useAccounts()
+
+  // Quick Add Client modal state
+  const [showAddClientModal, setShowAddClientModal] = useState(false)
+  const [newClientData, setNewClientData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  })
   const {
     useInvoice,
     getNextInvoiceNumber,
@@ -31,9 +40,8 @@ const InvoiceDetail = () => {
     isUpdating,
   } = useInvoices()
 
-  const { data: invoiceData, isLoading: invoiceLoading } = isNew
-    ? { data: null, isLoading: false }
-    : useInvoice(id)
+  // Always call the hook unconditionally - the enabled option inside handles the condition
+  const { data: invoiceData, isLoading: invoiceLoading } = useInvoice(isNew ? null : id)
 
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -55,9 +63,13 @@ const InvoiceDetail = () => {
 
   // Load invoice data
   useEffect(() => {
-    if (isNew) {
+    if (isNew && activeCompany?.id) {
       getNextInvoiceNumber().then((num) => {
         setFormData((prev) => ({ ...prev, invoice_number: num }))
+      }).catch((error) => {
+        console.error('Error getting next invoice number:', error)
+        // Fallback to default if there's an error
+        setFormData((prev) => ({ ...prev, invoice_number: 'INV-0001' }))
       })
     } else if (invoiceData) {
       setFormData({
@@ -82,7 +94,7 @@ const InvoiceDetail = () => {
         )
       }
     }
-  }, [isNew, invoiceData])
+  }, [isNew, invoiceData, activeCompany?.id])
 
   // Calculate totals
   const calculateLineTotal = (item) => {
@@ -120,6 +132,28 @@ const InvoiceDetail = () => {
     const newItems = [...items]
     newItems[index] = { ...newItems[index], [field]: value }
     setItems(newItems)
+  }
+
+  // Quick Add Client handlers
+  const handleQuickAddClient = async (e) => {
+    e.preventDefault()
+
+    if (!newClientData.name.trim()) {
+      toast.error('Client name is required')
+      return
+    }
+
+    try {
+      const newClient = await createClient(newClientData)
+      toast.success('Client created successfully')
+      // Auto-select the new client
+      setFormData((prev) => ({ ...prev, client_id: newClient.id }))
+      // Reset and close modal
+      setNewClientData({ name: '', email: '', phone: '' })
+      setShowAddClientModal(false)
+    } catch (error) {
+      toast.error(error.message || 'Failed to create client')
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -247,16 +281,36 @@ const InvoiceDetail = () => {
               />
             </div>
 
-            <Select
-              label="Client"
-              value={formData.client_id}
-              onChange={(e) =>
-                setFormData({ ...formData, client_id: e.target.value })
-              }
-              options={clientOptions}
-              placeholder="Select a client"
-              required
-            />
+            <div className="space-y-1">
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Select
+                    label="Client"
+                    value={formData.client_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, client_id: e.target.value })
+                    }
+                    options={clientOptions}
+                    placeholder="Select a client"
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddClientModal(true)}
+                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-accent-600 hover:text-accent-700 hover:bg-accent-50 rounded-lg border border-accent-200 transition-colors"
+                  title="Add new client"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span className="hidden sm:inline">New</span>
+                </button>
+              </div>
+              {clients.length === 0 && (
+                <p className="text-xs text-gray-500">
+                  No clients yet. Click "New" to add your first client.
+                </p>
+              )}
+            </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <Input
@@ -474,6 +528,59 @@ const InvoiceDetail = () => {
           </div>
         </div>
       </form>
+
+      {/* Quick Add Client Modal */}
+      <Modal
+        isOpen={showAddClientModal}
+        onClose={() => setShowAddClientModal(false)}
+        title="Quick Add Client"
+      >
+        <form onSubmit={handleQuickAddClient} className="space-y-4">
+          <Input
+            label="Client Name *"
+            value={newClientData.name}
+            onChange={(e) =>
+              setNewClientData({ ...newClientData, name: e.target.value })
+            }
+            placeholder="Enter client name"
+            required
+            autoFocus
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={newClientData.email}
+            onChange={(e) =>
+              setNewClientData({ ...newClientData, email: e.target.value })
+            }
+            placeholder="client@example.com"
+          />
+          <Input
+            label="Phone"
+            type="tel"
+            value={newClientData.phone}
+            onChange={(e) =>
+              setNewClientData({ ...newClientData, phone: e.target.value })
+            }
+            placeholder="+27 12 345 6789"
+          />
+          <p className="text-xs text-gray-500">
+            You can add more details later from the Clients page.
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddClientModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={isCreatingClient}>
+              Add Client
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

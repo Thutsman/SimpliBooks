@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, UserPlus } from 'lucide-react'
 import { usePurchases } from '../hooks/usePurchases'
 import { useSuppliers } from '../hooks/useSuppliers'
 import { useAccounts } from '../hooks/useAccounts'
@@ -9,6 +9,7 @@ import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Select, Textarea } from '../components/ui/Input'
+import Modal from '../components/ui/Modal'
 import { formatCurrency } from '../lib/constants'
 import { format, addDays } from 'date-fns'
 
@@ -19,8 +20,16 @@ const PurchaseDetail = () => {
   const isNew = !id || id === 'new'
 
   const { activeCompany } = useCompany()
-  const { suppliers } = useSuppliers()
+  const { suppliers, createSupplier, isCreating: isCreatingSupplier } = useSuppliers()
   const { accounts } = useAccounts()
+
+  // Quick Add Supplier modal state
+  const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
+  const [newSupplierData, setNewSupplierData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  })
   const {
     usePurchase,
     createPurchase,
@@ -29,9 +38,8 @@ const PurchaseDetail = () => {
     isUpdating,
   } = usePurchases()
 
-  const { data: purchaseData, isLoading: purchaseLoading } = isNew
-    ? { data: null, isLoading: false }
-    : usePurchase(id)
+  // Always call the hook unconditionally - the enabled option inside handles the condition
+  const { data: purchaseData, isLoading: purchaseLoading } = usePurchase(isNew ? null : id)
 
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -107,6 +115,27 @@ const PurchaseDetail = () => {
     const newItems = [...items]
     newItems[index] = { ...newItems[index], [field]: value }
     setItems(newItems)
+  }
+
+  // Quick Add Supplier handlers
+  const handleQuickAddSupplier = async (e) => {
+    e.preventDefault()
+    if (!newSupplierData.name.trim()) {
+      toast.error('Supplier name is required')
+      return
+    }
+
+    try {
+      const newSupplier = await createSupplier(newSupplierData)
+      toast.success('Supplier created successfully')
+      // Auto-select the new supplier
+      setFormData((prev) => ({ ...prev, supplier_id: newSupplier.id }))
+      // Reset and close modal
+      setNewSupplierData({ name: '', email: '', phone: '' })
+      setShowAddSupplierModal(false)
+    } catch (error) {
+      toast.error(error.message || 'Failed to create supplier')
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -224,15 +253,35 @@ const PurchaseDetail = () => {
               />
             </div>
 
-            <Select
-              label="Supplier"
-              value={formData.supplier_id}
-              onChange={(e) =>
-                setFormData({ ...formData, supplier_id: e.target.value })
-              }
-              options={supplierOptions}
-              placeholder="Select a supplier (optional)"
-            />
+            <div className="space-y-1">
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Select
+                    label="Supplier"
+                    value={formData.supplier_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, supplier_id: e.target.value })
+                    }
+                    options={supplierOptions}
+                    placeholder="Select a supplier (optional)"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddSupplierModal(true)}
+                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-accent-600 hover:text-accent-700 hover:bg-accent-50 rounded-lg border border-accent-200 transition-colors"
+                  title="Add new supplier"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span className="hidden sm:inline">New</span>
+                </button>
+              </div>
+              {suppliers.length === 0 && (
+                <p className="text-xs text-gray-500">
+                  No suppliers yet. Click "New" to add your first supplier.
+                </p>
+              )}
+            </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <Input
@@ -379,6 +428,59 @@ const PurchaseDetail = () => {
           </div>
         </div>
       </form>
+
+      {/* Quick Add Supplier Modal */}
+      <Modal
+        isOpen={showAddSupplierModal}
+        onClose={() => setShowAddSupplierModal(false)}
+        title="Quick Add Supplier"
+      >
+        <form onSubmit={handleQuickAddSupplier} className="space-y-4">
+          <Input
+            label="Supplier Name *"
+            value={newSupplierData.name}
+            onChange={(e) =>
+              setNewSupplierData({ ...newSupplierData, name: e.target.value })
+            }
+            placeholder="Enter supplier name"
+            required
+            autoFocus
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={newSupplierData.email}
+            onChange={(e) =>
+              setNewSupplierData({ ...newSupplierData, email: e.target.value })
+            }
+            placeholder="supplier@example.com"
+          />
+          <Input
+            label="Phone"
+            type="tel"
+            value={newSupplierData.phone}
+            onChange={(e) =>
+              setNewSupplierData({ ...newSupplierData, phone: e.target.value })
+            }
+            placeholder="+27 12 345 6789"
+          />
+          <p className="text-xs text-gray-500">
+            You can add more details later from the Suppliers page.
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddSupplierModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={isCreatingSupplier}>
+              Add Supplier
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

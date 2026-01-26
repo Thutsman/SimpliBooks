@@ -24,6 +24,10 @@ export const useSuppliers = () => {
 
   const createSupplier = useMutation({
     mutationFn: async (supplierData) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected. Please select or create a company first.')
+      }
+
       const { data, error } = await supabase
         .from('suppliers')
         .insert({
@@ -33,7 +37,10 @@ export const useSuppliers = () => {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supplier creation error:', error)
+        throw new Error(error.message || 'Failed to create supplier')
+      }
       return data
     },
     onSuccess: () => {
@@ -43,6 +50,10 @@ export const useSuppliers = () => {
 
   const updateSupplier = useMutation({
     mutationFn: async ({ id, ...data }) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected')
+      }
+
       const { data: supplier, error } = await supabase
         .from('suppliers')
         .update(data)
@@ -50,7 +61,10 @@ export const useSuppliers = () => {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supplier update error:', error)
+        throw new Error(error.message || 'Failed to update supplier')
+      }
       return supplier
     },
     onSuccess: () => {
@@ -60,13 +74,20 @@ export const useSuppliers = () => {
 
   const deleteSupplier = useMutation({
     mutationFn: async (id) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected')
+      }
+
       // Soft delete by setting is_active to false
       const { error } = await supabase
         .from('suppliers')
         .update({ is_active: false })
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Supplier delete error:', error)
+        throw new Error(error.message || 'Failed to delete supplier')
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers', activeCompanyId] })

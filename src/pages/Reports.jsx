@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { FileText, Calculator, Download, Printer } from 'lucide-react'
-import { useTrialBalance, useVATReport } from '../hooks/useReports'
+import { FileText, Calculator, Download, Printer, BookOpen, Scale, TrendingUp } from 'lucide-react'
+import { useTrialBalance, useVATReport, useGeneralLedger, useIncomeStatement, useBalanceSheet } from '../hooks/useReports'
 import { useCompany } from '../context/CompanyContext'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -28,6 +28,20 @@ const Reports = () => {
 
   const { data: vatReport, isLoading: vatLoading } = useVATReport(
     dateRange.start,
+    dateRange.end
+  )
+
+  const { data: generalLedger, isLoading: glLoading } = useGeneralLedger(
+    dateRange.start,
+    dateRange.end
+  )
+
+  const { data: incomeStatement, isLoading: isLoading } = useIncomeStatement(
+    dateRange.start,
+    dateRange.end
+  )
+
+  const { data: balanceSheet, isLoading: bsLoading } = useBalanceSheet(
     dateRange.end
   )
 
@@ -66,6 +80,9 @@ const Reports = () => {
 
   const reports = [
     { id: 'trial-balance', name: 'Trial Balance', icon: Calculator },
+    { id: 'general-ledger', name: 'General Ledger', icon: BookOpen },
+    { id: 'income-statement', name: 'Income Statement', icon: TrendingUp },
+    { id: 'balance-sheet', name: 'Balance Sheet', icon: Scale },
     { id: 'vat', name: 'VAT Report', icon: FileText },
   ]
 
@@ -163,10 +180,13 @@ const Reports = () => {
         <div className="text-center mb-6 border-b pb-4">
           <h2 className="text-xl font-bold text-gray-900">{activeCompany?.name}</h2>
           <h3 className="text-lg font-semibold text-gray-700">
-            {activeReport === 'trial-balance' ? 'Trial Balance' : 'VAT Report'}
+            {reports.find(r => r.id === activeReport)?.name || 'Report'}
           </h3>
           <p className="text-sm text-gray-500">
-            For the period {formatDate(dateRange.start)} to {formatDate(dateRange.end)}
+            {activeReport === 'balance-sheet'
+              ? `As of ${formatDate(dateRange.end)}`
+              : `For the period ${formatDate(dateRange.start)} to ${formatDate(dateRange.end)}`
+            }
           </p>
         </div>
 
@@ -312,6 +332,365 @@ const Reports = () => {
                         : 'Amount claimable from tax authority'}
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* General Ledger */}
+        {activeReport === 'general-ledger' && (
+          <>
+            {glLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : generalLedger?.ledger?.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No journal entries found for this period.</p>
+                <p className="text-sm mt-2">Journal entries are created when invoices are sent or purchases are recorded.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {generalLedger?.ledger?.map((ledger) => (
+                  <div key={ledger.account.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
+                      <div>
+                        <span className="font-mono text-sm text-gray-500 mr-2">{ledger.account.code}</span>
+                        <span className="font-semibold text-gray-900">{ledger.account.name}</span>
+                        <span className="ml-2 text-xs text-gray-500 capitalize">({ledger.account.type})</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm text-gray-500">Balance: </span>
+                        <span className={`font-mono font-semibold ${ledger.closingBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                          {formatCurrency(Math.abs(ledger.closingBalance), activeCompany?.currency)}
+                          {ledger.closingBalance < 0 ? ' CR' : ' DR'}
+                        </span>
+                      </div>
+                    </div>
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-t border-gray-200">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Entry #</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Description</th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Debit</th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Credit</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {ledger.entries.map((entry, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 text-sm text-gray-600">{formatDate(entry.date)}</td>
+                            <td className="px-4 py-2 text-sm font-mono text-gray-500">{entry.entryNumber}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{entry.description}</td>
+                            <td className="px-4 py-2 text-sm text-right font-mono">
+                              {entry.debit > 0 ? formatCurrency(entry.debit, activeCompany?.currency) : '-'}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-right font-mono">
+                              {entry.credit > 0 ? formatCurrency(entry.credit, activeCompany?.currency) : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t border-gray-200">
+                        <tr className="font-medium">
+                          <td colSpan="3" className="px-4 py-2 text-sm text-right">Total</td>
+                          <td className="px-4 py-2 text-sm text-right font-mono">{formatCurrency(ledger.totalDebit, activeCompany?.currency)}</td>
+                          <td className="px-4 py-2 text-sm text-right font-mono">{formatCurrency(ledger.totalCredit, activeCompany?.currency)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Income Statement */}
+        {activeReport === 'income-statement' && (
+          <>
+            {isLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Revenue Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">Revenue</h4>
+                  {incomeStatement?.revenue?.length > 0 ? (
+                    <div className="space-y-2">
+                      {incomeStatement.revenue.map((acc) => (
+                        <div key={acc.id} className="flex justify-between px-4 py-1">
+                          <span className="text-gray-700">{acc.name}</span>
+                          <span className="font-mono">{formatCurrency(acc.balance, activeCompany?.currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 px-4 py-2 text-sm">No revenue recorded</p>
+                  )}
+                  <div className="flex justify-between px-4 py-2 bg-gray-50 rounded mt-2 font-semibold">
+                    <span>Total Revenue</span>
+                    <span className="font-mono">{formatCurrency(incomeStatement?.totalRevenue || 0, activeCompany?.currency)}</span>
+                  </div>
+                </div>
+
+                {/* Cost of Sales Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">Cost of Sales</h4>
+                  {incomeStatement?.costOfSales?.length > 0 ? (
+                    <div className="space-y-2">
+                      {incomeStatement.costOfSales.map((acc) => (
+                        <div key={acc.id} className="flex justify-between px-4 py-1">
+                          <span className="text-gray-700">{acc.name}</span>
+                          <span className="font-mono text-red-600">({formatCurrency(acc.balance, activeCompany?.currency)})</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 px-4 py-2 text-sm">No cost of sales recorded</p>
+                  )}
+                  <div className="flex justify-between px-4 py-2 bg-gray-50 rounded mt-2 font-semibold">
+                    <span>Total Cost of Sales</span>
+                    <span className="font-mono text-red-600">({formatCurrency(incomeStatement?.totalCostOfSales || 0, activeCompany?.currency)})</span>
+                  </div>
+                </div>
+
+                {/* Gross Profit */}
+                <div className="flex justify-between px-4 py-3 bg-blue-50 rounded-lg border border-blue-200 font-bold text-lg">
+                  <span>Gross Profit</span>
+                  <span className={`font-mono ${incomeStatement?.grossProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(incomeStatement?.grossProfit || 0, activeCompany?.currency)}
+                  </span>
+                </div>
+
+                {/* Operating Expenses Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">Operating Expenses</h4>
+                  {incomeStatement?.operatingExpenses?.length > 0 ? (
+                    <div className="space-y-2">
+                      {incomeStatement.operatingExpenses.map((acc) => (
+                        <div key={acc.id} className="flex justify-between px-4 py-1">
+                          <span className="text-gray-700">{acc.name}</span>
+                          <span className="font-mono text-red-600">({formatCurrency(acc.balance, activeCompany?.currency)})</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 px-4 py-2 text-sm">No operating expenses recorded</p>
+                  )}
+                  <div className="flex justify-between px-4 py-2 bg-gray-50 rounded mt-2 font-semibold">
+                    <span>Total Operating Expenses</span>
+                    <span className="font-mono text-red-600">({formatCurrency(incomeStatement?.totalOperatingExpenses || 0, activeCompany?.currency)})</span>
+                  </div>
+                </div>
+
+                {/* Other Income */}
+                {incomeStatement?.otherIncome?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">Other Income</h4>
+                    <div className="space-y-2">
+                      {incomeStatement.otherIncome.map((acc) => (
+                        <div key={acc.id} className="flex justify-between px-4 py-1">
+                          <span className="text-gray-700">{acc.name}</span>
+                          <span className="font-mono">{formatCurrency(acc.balance, activeCompany?.currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Other Expenses */}
+                {incomeStatement?.otherExpenses?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">Other Expenses</h4>
+                    <div className="space-y-2">
+                      {incomeStatement.otherExpenses.map((acc) => (
+                        <div key={acc.id} className="flex justify-between px-4 py-1">
+                          <span className="text-gray-700">{acc.name}</span>
+                          <span className="font-mono text-red-600">({formatCurrency(acc.balance, activeCompany?.currency)})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Net Profit */}
+                <div className="flex justify-between px-4 py-4 bg-primary-50 rounded-lg border-2 border-primary-200 font-bold text-xl">
+                  <span>Net Profit / (Loss)</span>
+                  <span className={`font-mono ${incomeStatement?.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {incomeStatement?.netProfit >= 0 ? '' : '('}
+                    {formatCurrency(Math.abs(incomeStatement?.netProfit || 0), activeCompany?.currency)}
+                    {incomeStatement?.netProfit >= 0 ? '' : ')'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Balance Sheet */}
+        {activeReport === 'balance-sheet' && (
+          <>
+            {bsLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Assets Column */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold text-gray-900 border-b-2 border-gray-300 pb-2">ASSETS</h3>
+
+                  {/* Current Assets */}
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Current Assets</h4>
+                    {balanceSheet?.currentAssets?.length > 0 ? (
+                      <div className="space-y-1">
+                        {balanceSheet.currentAssets.map((acc) => (
+                          <div key={acc.id} className="flex justify-between px-3 py-1 text-sm">
+                            <span className="text-gray-600">{acc.name}</span>
+                            <span className="font-mono">{formatCurrency(acc.balance, activeCompany?.currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 text-sm px-3">No current assets</p>
+                    )}
+                    <div className="flex justify-between px-3 py-2 bg-gray-100 rounded mt-2 font-medium text-sm">
+                      <span>Total Current Assets</span>
+                      <span className="font-mono">{formatCurrency(balanceSheet?.totalCurrentAssets || 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+
+                  {/* Fixed Assets */}
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Fixed Assets</h4>
+                    {balanceSheet?.fixedAssets?.length > 0 ? (
+                      <div className="space-y-1">
+                        {balanceSheet.fixedAssets.map((acc) => (
+                          <div key={acc.id} className="flex justify-between px-3 py-1 text-sm">
+                            <span className="text-gray-600">{acc.name}</span>
+                            <span className="font-mono">{formatCurrency(acc.balance, activeCompany?.currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 text-sm px-3">No fixed assets</p>
+                    )}
+                    <div className="flex justify-between px-3 py-2 bg-gray-100 rounded mt-2 font-medium text-sm">
+                      <span>Total Fixed Assets</span>
+                      <span className="font-mono">{formatCurrency(balanceSheet?.totalFixedAssets || 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+
+                  {/* Total Assets */}
+                  <div className="flex justify-between px-4 py-3 bg-blue-100 rounded-lg font-bold border border-blue-300">
+                    <span>TOTAL ASSETS</span>
+                    <span className="font-mono">{formatCurrency(balanceSheet?.totalAssets || 0, activeCompany?.currency)}</span>
+                  </div>
+                </div>
+
+                {/* Liabilities & Equity Column */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold text-gray-900 border-b-2 border-gray-300 pb-2">LIABILITIES & EQUITY</h3>
+
+                  {/* Current Liabilities */}
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Current Liabilities</h4>
+                    {balanceSheet?.currentLiabilities?.length > 0 ? (
+                      <div className="space-y-1">
+                        {balanceSheet.currentLiabilities.map((acc) => (
+                          <div key={acc.id} className="flex justify-between px-3 py-1 text-sm">
+                            <span className="text-gray-600">{acc.name}</span>
+                            <span className="font-mono">{formatCurrency(acc.balance, activeCompany?.currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 text-sm px-3">No current liabilities</p>
+                    )}
+                    <div className="flex justify-between px-3 py-2 bg-gray-100 rounded mt-2 font-medium text-sm">
+                      <span>Total Current Liabilities</span>
+                      <span className="font-mono">{formatCurrency(balanceSheet?.totalCurrentLiabilities || 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+
+                  {/* Long-term Liabilities */}
+                  {balanceSheet?.longTermLiabilities?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-2">Long-term Liabilities</h4>
+                      <div className="space-y-1">
+                        {balanceSheet.longTermLiabilities.map((acc) => (
+                          <div key={acc.id} className="flex justify-between px-3 py-1 text-sm">
+                            <span className="text-gray-600">{acc.name}</span>
+                            <span className="font-mono">{formatCurrency(acc.balance, activeCompany?.currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between px-3 py-2 bg-gray-100 rounded mt-2 font-medium text-sm">
+                        <span>Total Long-term Liabilities</span>
+                        <span className="font-mono">{formatCurrency(balanceSheet?.totalLongTermLiabilities || 0, activeCompany?.currency)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Equity */}
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Equity</h4>
+                    {balanceSheet?.equity?.length > 0 && (
+                      <div className="space-y-1">
+                        {balanceSheet.equity.map((acc) => (
+                          <div key={acc.id} className="flex justify-between px-3 py-1 text-sm">
+                            <span className="text-gray-600">{acc.name}</span>
+                            <span className="font-mono">{formatCurrency(acc.balance, activeCompany?.currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex justify-between px-3 py-1 text-sm">
+                      <span className="text-gray-600">Retained Earnings (Current Period)</span>
+                      <span className={`font-mono ${balanceSheet?.retainedEarnings >= 0 ? '' : 'text-red-600'}`}>
+                        {formatCurrency(balanceSheet?.retainedEarnings || 0, activeCompany?.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between px-3 py-2 bg-gray-100 rounded mt-2 font-medium text-sm">
+                      <span>Total Equity</span>
+                      <span className="font-mono">{formatCurrency(balanceSheet?.totalEquityWithRetainedEarnings || 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+
+                  {/* Total Liabilities & Equity */}
+                  <div className="flex justify-between px-4 py-3 bg-blue-100 rounded-lg font-bold border border-blue-300">
+                    <span>TOTAL LIABILITIES & EQUITY</span>
+                    <span className="font-mono">{formatCurrency(balanceSheet?.totalLiabilitiesAndEquity || 0, activeCompany?.currency)}</span>
+                  </div>
+                </div>
+
+                {/* Balance Check */}
+                <div className="md:col-span-2">
+                  {balanceSheet?.balanced ? (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                      <p className="text-green-700 font-medium">Balance Sheet is balanced. Assets equal Liabilities + Equity.</p>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+                      <p className="text-red-700 font-medium">
+                        Warning: Balance Sheet does not balance. Difference:{' '}
+                        {formatCurrency(Math.abs((balanceSheet?.totalAssets || 0) - (balanceSheet?.totalLiabilitiesAndEquity || 0)), activeCompany?.currency)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

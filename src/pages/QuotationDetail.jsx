@@ -59,9 +59,13 @@ const QuotationDetail = () => {
 
   // Load quotation data
   useEffect(() => {
-    if (isNew) {
+    if (isNew && activeCompany?.id) {
       getNextQuotationNumber().then((num) => {
         setFormData((prev) => ({ ...prev, quotation_number: num }))
+      }).catch((error) => {
+        console.error('Error getting next quotation number:', error)
+        // Fallback to default if there's an error
+        setFormData((prev) => ({ ...prev, quotation_number: 'QTN-0001' }))
       })
     } else if (quotationData) {
       setFormData({
@@ -86,7 +90,7 @@ const QuotationDetail = () => {
         )
       }
     }
-  }, [isNew, quotationData])
+  }, [isNew, quotationData, activeCompany?.id])
 
   // Calculate totals
   const calculateLineTotal = (item) => {

@@ -1,12 +1,14 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useOnboarding } from '../../hooks/useOnboarding'
 import { Loader2 } from 'lucide-react'
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, skipOnboardingCheck = false }) => {
   const { user, loading } = useAuth()
+  const { needsOnboarding, isLoading: onboardingLoading } = useOnboarding()
   const location = useLocation()
 
-  if (loading) {
+  if (loading || onboardingLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -19,6 +21,11 @@ const ProtectedRoute = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // Redirect to onboarding if needed (unless we're already on onboarding or skipping check)
+  if (!skipOnboardingCheck && needsOnboarding && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />
   }
 
   return children
