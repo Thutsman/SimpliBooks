@@ -71,6 +71,174 @@ const Reports = () => {
         { Description: 'Net VAT Payable', Amount: vatReport.netVAT.toFixed(2) },
       ]
       exportToExcel(data, `vat-report-${dateRange.start}-${dateRange.end}`, 'VAT Report')
+    } else if (activeReport === 'income-statement' && incomeStatement) {
+      const data = []
+
+      // Revenue section
+      data.push({ Section: 'REVENUE', Account: '', Amount: '' })
+      incomeStatement.revenue?.forEach((acc) => {
+        data.push({ Section: '', Account: acc.name, Amount: acc.balance.toFixed(2) })
+      })
+      data.push({ Section: '', Account: 'Total Revenue', Amount: incomeStatement.totalRevenue.toFixed(2) })
+      data.push({ Section: '', Account: '', Amount: '' })
+
+      // Cost of Sales section
+      data.push({ Section: 'COST OF SALES', Account: '', Amount: '' })
+      incomeStatement.costOfSales?.forEach((acc) => {
+        data.push({ Section: '', Account: acc.name, Amount: `(${acc.balance.toFixed(2)})` })
+      })
+      data.push({ Section: '', Account: 'Total Cost of Sales', Amount: `(${incomeStatement.totalCostOfSales.toFixed(2)})` })
+      data.push({ Section: '', Account: '', Amount: '' })
+
+      // Gross Profit
+      data.push({ Section: 'GROSS PROFIT', Account: '', Amount: incomeStatement.grossProfit.toFixed(2) })
+      data.push({ Section: '', Account: '', Amount: '' })
+
+      // Operating Expenses section
+      data.push({ Section: 'OPERATING EXPENSES', Account: '', Amount: '' })
+      incomeStatement.operatingExpenses?.forEach((acc) => {
+        data.push({ Section: '', Account: acc.name, Amount: `(${acc.balance.toFixed(2)})` })
+      })
+      data.push({ Section: '', Account: 'Total Operating Expenses', Amount: `(${incomeStatement.totalOperatingExpenses.toFixed(2)})` })
+      data.push({ Section: '', Account: '', Amount: '' })
+
+      // Other Income
+      if (incomeStatement.otherIncome?.length > 0) {
+        data.push({ Section: 'OTHER INCOME', Account: '', Amount: '' })
+        incomeStatement.otherIncome.forEach((acc) => {
+          data.push({ Section: '', Account: acc.name, Amount: acc.balance.toFixed(2) })
+        })
+        data.push({ Section: '', Account: '', Amount: '' })
+      }
+
+      // Other Expenses
+      if (incomeStatement.otherExpenses?.length > 0) {
+        data.push({ Section: 'OTHER EXPENSES', Account: '', Amount: '' })
+        incomeStatement.otherExpenses.forEach((acc) => {
+          data.push({ Section: '', Account: acc.name, Amount: `(${acc.balance.toFixed(2)})` })
+        })
+        data.push({ Section: '', Account: '', Amount: '' })
+      }
+
+      // Net Profit
+      const netProfitDisplay = incomeStatement.netProfit >= 0
+        ? incomeStatement.netProfit.toFixed(2)
+        : `(${Math.abs(incomeStatement.netProfit).toFixed(2)})`
+      data.push({ Section: 'NET PROFIT / (LOSS)', Account: '', Amount: netProfitDisplay })
+
+      exportToExcel(data, `income-statement-${dateRange.start}-${dateRange.end}`, 'Income Statement')
+    } else if (activeReport === 'balance-sheet' && balanceSheet) {
+      const data = []
+
+      // Assets section
+      data.push({ Section: 'ASSETS', Category: '', Account: '', Amount: '' })
+      data.push({ Section: '', Category: 'Current Assets', Account: '', Amount: '' })
+      balanceSheet.currentAssets?.forEach((acc) => {
+        data.push({ Section: '', Category: '', Account: acc.name, Amount: acc.balance.toFixed(2) })
+      })
+      data.push({ Section: '', Category: '', Account: 'Total Current Assets', Amount: balanceSheet.totalCurrentAssets.toFixed(2) })
+
+      data.push({ Section: '', Category: 'Fixed Assets', Account: '', Amount: '' })
+      balanceSheet.fixedAssets?.forEach((acc) => {
+        data.push({ Section: '', Category: '', Account: acc.name, Amount: acc.balance.toFixed(2) })
+      })
+      data.push({ Section: '', Category: '', Account: 'Total Fixed Assets', Amount: balanceSheet.totalFixedAssets.toFixed(2) })
+
+      data.push({ Section: '', Category: '', Account: 'TOTAL ASSETS', Amount: balanceSheet.totalAssets.toFixed(2) })
+      data.push({ Section: '', Category: '', Account: '', Amount: '' })
+
+      // Liabilities section
+      data.push({ Section: 'LIABILITIES', Category: '', Account: '', Amount: '' })
+      data.push({ Section: '', Category: 'Current Liabilities', Account: '', Amount: '' })
+      balanceSheet.currentLiabilities?.forEach((acc) => {
+        data.push({ Section: '', Category: '', Account: acc.name, Amount: acc.balance.toFixed(2) })
+      })
+      data.push({ Section: '', Category: '', Account: 'Total Current Liabilities', Amount: balanceSheet.totalCurrentLiabilities.toFixed(2) })
+
+      if (balanceSheet.longTermLiabilities?.length > 0) {
+        data.push({ Section: '', Category: 'Long-term Liabilities', Account: '', Amount: '' })
+        balanceSheet.longTermLiabilities.forEach((acc) => {
+          data.push({ Section: '', Category: '', Account: acc.name, Amount: acc.balance.toFixed(2) })
+        })
+        data.push({ Section: '', Category: '', Account: 'Total Long-term Liabilities', Amount: balanceSheet.totalLongTermLiabilities.toFixed(2) })
+      }
+
+      data.push({ Section: '', Category: '', Account: 'Total Liabilities', Amount: balanceSheet.totalLiabilities.toFixed(2) })
+      data.push({ Section: '', Category: '', Account: '', Amount: '' })
+
+      // Equity section
+      data.push({ Section: 'EQUITY', Category: '', Account: '', Amount: '' })
+      balanceSheet.equity?.forEach((acc) => {
+        data.push({ Section: '', Category: '', Account: acc.name, Amount: acc.balance.toFixed(2) })
+      })
+      data.push({ Section: '', Category: '', Account: 'Retained Earnings (Current Period)', Amount: balanceSheet.retainedEarnings.toFixed(2) })
+      data.push({ Section: '', Category: '', Account: 'Total Equity', Amount: balanceSheet.totalEquityWithRetainedEarnings.toFixed(2) })
+      data.push({ Section: '', Category: '', Account: '', Amount: '' })
+
+      // Total
+      data.push({ Section: '', Category: '', Account: 'TOTAL LIABILITIES & EQUITY', Amount: balanceSheet.totalLiabilitiesAndEquity.toFixed(2) })
+
+      exportToExcel(data, `balance-sheet-${dateRange.end}`, 'Balance Sheet')
+    } else if (activeReport === 'general-ledger' && generalLedger) {
+      const data = []
+
+      generalLedger.ledger?.forEach((ledger) => {
+        // Account header
+        data.push({
+          Account: `${ledger.account.code} - ${ledger.account.name}`,
+          Date: '',
+          'Entry #': '',
+          Description: '',
+          Debit: '',
+          Credit: '',
+          Balance: ''
+        })
+
+        // Entries
+        let runningBalance = 0
+        ledger.entries.forEach((entry) => {
+          // Calculate running balance based on account type
+          if (['asset', 'expense'].includes(ledger.account.type)) {
+            runningBalance += entry.debit - entry.credit
+          } else {
+            runningBalance += entry.credit - entry.debit
+          }
+
+          data.push({
+            Account: '',
+            Date: entry.date,
+            'Entry #': entry.entryNumber,
+            Description: entry.description || '',
+            Debit: entry.debit > 0 ? entry.debit.toFixed(2) : '',
+            Credit: entry.credit > 0 ? entry.credit.toFixed(2) : '',
+            Balance: runningBalance.toFixed(2)
+          })
+        })
+
+        // Account totals
+        data.push({
+          Account: '',
+          Date: '',
+          'Entry #': '',
+          Description: 'TOTAL',
+          Debit: ledger.totalDebit.toFixed(2),
+          Credit: ledger.totalCredit.toFixed(2),
+          Balance: ledger.closingBalance.toFixed(2)
+        })
+
+        // Empty row between accounts
+        data.push({
+          Account: '',
+          Date: '',
+          'Entry #': '',
+          Description: '',
+          Debit: '',
+          Credit: '',
+          Balance: ''
+        })
+      })
+
+      exportToExcel(data, `general-ledger-${dateRange.start}-${dateRange.end}`, 'General Ledger')
     }
   }
 
