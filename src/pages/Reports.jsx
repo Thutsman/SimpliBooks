@@ -1,7 +1,23 @@
 import { useState } from 'react'
-import { FileText, Calculator, Download, Printer, BookOpen, Scale, TrendingUp } from 'lucide-react'
-import { useTrialBalance, useVATReport, useGeneralLedger, useIncomeStatement, useBalanceSheet } from '../hooks/useReports'
+import { FileText, Calculator, Download, Printer, BookOpen, Scale, TrendingUp, Users, Truck, Clock, Receipt, AlertCircle } from 'lucide-react'
+import {
+  useTrialBalance,
+  useVATReport,
+  useVAT201Report,
+  useGeneralLedger,
+  useIncomeStatement,
+  useBalanceSheet,
+  useARAging,
+  useAPAging,
+  useCashFlowStatement,
+  useProfitLossByPeriod,
+  useCustomerStatement,
+  useSupplierStatement,
+  useUnreconciledItemsReport,
+} from '../hooks/useReports'
 import { useCompany } from '../context/CompanyContext'
+import { useClients } from '../hooks/useClients'
+import { useSuppliers } from '../hooks/useSuppliers'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Select } from '../components/ui/Input'
@@ -16,8 +32,16 @@ const Reports = () => {
     start: format(new Date(), 'yyyy-MM-dd'),
     end: format(new Date(), 'yyyy-MM-dd'),
   })
+  const [statementClientId, setStatementClientId] = useState('')
+  const [statementSupplierId, setStatementSupplierId] = useState('')
+  const [plCompareRange, setPlCompareRange] = useState({
+    start2: format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), 'yyyy-MM-dd'),
+    end2: format(new Date(new Date().getFullYear(), new Date().getMonth(), 0), 'yyyy-MM-dd'),
+  })
 
   const { activeCompany } = useCompany()
+  const { clients } = useClients()
+  const { suppliers } = useSuppliers()
 
   const dateRange = period === 'custom' ? customRange : getDateRange(period)
 
@@ -27,6 +51,11 @@ const Reports = () => {
   )
 
   const { data: vatReport, isLoading: vatLoading } = useVATReport(
+    dateRange.start,
+    dateRange.end
+  )
+
+  const { data: vat201Report, isLoading: vat201Loading } = useVAT201Report(
     dateRange.start,
     dateRange.end
   )
@@ -44,6 +73,31 @@ const Reports = () => {
   const { data: balanceSheet, isLoading: bsLoading } = useBalanceSheet(
     dateRange.end
   )
+
+  const { data: arAging, isLoading: arAgingLoading } = useARAging(dateRange.end)
+  const { data: apAging, isLoading: apAgingLoading } = useAPAging(dateRange.end)
+  const { data: cashFlow, isLoading: cashFlowLoading } = useCashFlowStatement(
+    dateRange.start,
+    dateRange.end
+  )
+  const { data: plByPeriod, isLoading: plByPeriodLoading } = useProfitLossByPeriod(
+    dateRange.start,
+    dateRange.end,
+    plCompareRange.start2,
+    plCompareRange.end2,
+    activeReport === 'pl-by-period'
+  )
+  const { data: customerStatement, isLoading: customerStmtLoading } = useCustomerStatement(
+    statementClientId || null,
+    dateRange.start,
+    dateRange.end
+  )
+  const { data: supplierStatement, isLoading: supplierStmtLoading } = useSupplierStatement(
+    statementSupplierId || null,
+    dateRange.start,
+    dateRange.end
+  )
+  const { data: unreconciledItems, isLoading: unreconciledLoading } = useUnreconciledItemsReport(dateRange.end)
 
   const handleExportExcel = () => {
     if (activeReport === 'trial-balance' && trialBalance) {
@@ -239,6 +293,139 @@ const Reports = () => {
       })
 
       exportToExcel(data, `general-ledger-${dateRange.start}-${dateRange.end}`, 'General Ledger')
+    } else if (activeReport === 'ar-aging' && arAging) {
+      const data = arAging.rows.map((r) => ({
+        Customer: r.clientName,
+        Current: r.current.toFixed(2),
+        '31-60 days': r.days_31_60.toFixed(2),
+        '61-90 days': r.days_61_90.toFixed(2),
+        'Over 90': r.over_90.toFixed(2),
+        Total: r.total.toFixed(2),
+      }))
+      data.push({
+        Customer: 'TOTAL',
+        Current: arAging.totals.current.toFixed(2),
+        '31-60 days': arAging.totals.days_31_60.toFixed(2),
+        '61-90 days': arAging.totals.days_61_90.toFixed(2),
+        'Over 90': arAging.totals.over_90.toFixed(2),
+        Total: arAging.totals.total.toFixed(2),
+      })
+      exportToExcel(data, `ar-aging-${arAging.asOfDate}`, 'AR Aging')
+    } else if (activeReport === 'ap-aging' && apAging) {
+      const data = apAging.rows.map((r) => ({
+        Supplier: r.supplierName,
+        Current: r.current.toFixed(2),
+        '31-60 days': r.days_31_60.toFixed(2),
+        '61-90 days': r.days_61_90.toFixed(2),
+        'Over 90': r.over_90.toFixed(2),
+        Total: r.total.toFixed(2),
+      }))
+      data.push({
+        Supplier: 'TOTAL',
+        Current: apAging.totals.current.toFixed(2),
+        '31-60 days': apAging.totals.days_31_60.toFixed(2),
+        '61-90 days': apAging.totals.days_61_90.toFixed(2),
+        'Over 90': apAging.totals.over_90.toFixed(2),
+        Total: apAging.totals.total.toFixed(2),
+      })
+      exportToExcel(data, `ap-aging-${apAging.asOfDate}`, 'AP Aging')
+    } else if (activeReport === 'vat201' && vat201Report) {
+      const data = [
+        { Box: '1', Description: 'Output tax', Amount: vat201Report.box1OutputTax.toFixed(2) },
+        { Box: '4', Description: 'Input tax', Amount: vat201Report.box4InputTax.toFixed(2) },
+        { Box: '7', Description: 'Net VAT', Amount: vat201Report.box7NetVAT.toFixed(2) },
+      ]
+      exportToExcel(data, `vat201-${dateRange.start}-${dateRange.end}`, 'VAT 201')
+    } else if (activeReport === 'cash-flow' && cashFlow) {
+      const data = [
+        { Section: 'Operating', Item: 'Net Income', Amount: cashFlow.netIncome.toFixed(2) },
+        ...cashFlow.operating.items.map((a) => ({ Section: '', Item: a.name, Amount: a.balance.toFixed(2) })),
+        { Section: '', Item: 'Operating total', Amount: cashFlow.operating.total.toFixed(2) },
+        { Section: 'Investing', Item: '', Amount: '' },
+        ...cashFlow.investing.items.map((a) => ({ Section: '', Item: a.name, Amount: a.balance.toFixed(2) })),
+        { Section: '', Item: 'Investing total', Amount: cashFlow.investing.total.toFixed(2) },
+        { Section: 'Financing', Item: '', Amount: '' },
+        ...cashFlow.financing.items.map((a) => ({ Section: '', Item: a.name, Amount: a.balance.toFixed(2) })),
+        { Section: '', Item: 'Financing total', Amount: cashFlow.financing.total.toFixed(2) },
+        { Section: '', Item: 'Net change in cash', Amount: cashFlow.netChangeInCash.toFixed(2) },
+      ]
+      exportToExcel(data, `cash-flow-${dateRange.start}-${dateRange.end}`, 'Cash Flow')
+    } else if (activeReport === 'pl-by-period' && plByPeriod) {
+      const data = [
+        { Metric: 'Revenue', Period1: plByPeriod.period1.revenue.toFixed(2), Period2: plByPeriod.period2.revenue.toFixed(2) },
+        { Metric: 'Expenses', Period1: plByPeriod.period1.expenses.toFixed(2), Period2: plByPeriod.period2.expenses.toFixed(2) },
+        { Metric: 'Net Profit', Period1: plByPeriod.period1.netProfit.toFixed(2), Period2: plByPeriod.period2.netProfit.toFixed(2) },
+      ]
+      exportToExcel(data, `pl-by-period-${dateRange.start}-${dateRange.end}`, 'P&L by Period')
+    } else if (activeReport === 'customer-statement' && customerStatement?.client) {
+      const data = [
+        { Date: '', Type: 'Opening Balance', Reference: '', Debit: '', Credit: '', Balance: customerStatement.openingBalance.toFixed(2) },
+        ...customerStatement.transactions.map((t) => ({
+          Date: t.date,
+          Type: t.type,
+          Reference: t.reference,
+          Debit: t.debit > 0 ? t.debit.toFixed(2) : '',
+          Credit: t.credit > 0 ? t.credit.toFixed(2) : '',
+          Balance: t.balance != null ? Number(t.balance).toFixed(2) : '',
+        })),
+        { Date: '', Type: 'Closing Balance', Reference: '', Debit: '', Credit: '', Balance: customerStatement.closingBalance.toFixed(2) },
+      ]
+      exportToExcel(data, `customer-statement-${statementClientId}-${dateRange.start}`, 'Customer Statement')
+    } else if (activeReport === 'supplier-statement' && supplierStatement?.supplier) {
+      const data = [
+        { Date: '', Type: 'Opening Balance', Reference: '', Debit: '', Credit: '', Balance: supplierStatement.openingBalance.toFixed(2) },
+        ...supplierStatement.transactions.map((t) => ({
+          Date: t.date,
+          Type: t.type,
+          Reference: t.reference,
+          Debit: t.debit > 0 ? t.debit.toFixed(2) : '',
+          Credit: t.credit > 0 ? t.credit.toFixed(2) : '',
+          Balance: t.balance != null ? Number(t.balance).toFixed(2) : '',
+        })),
+        { Date: '', Type: 'Closing Balance', Reference: '', Debit: '', Credit: '', Balance: supplierStatement.closingBalance.toFixed(2) },
+      ]
+      exportToExcel(data, `supplier-statement-${statementSupplierId}-${dateRange.start}`, 'Supplier Statement')
+    } else if (activeReport === 'unreconciled-items' && unreconciledItems) {
+      const data = []
+      unreconciledItems.bankTransactions.forEach((t) => {
+        data.push({
+          Type: 'Bank Transaction',
+          Date: t.date,
+          Description: t.description,
+          Reference: t.reference || '',
+          Amount: t.outstanding.toFixed(2),
+          Age: `${t.age} days`,
+        })
+      })
+      unreconciledItems.unpaidInvoices.forEach((inv) => {
+        data.push({
+          Type: 'Unpaid Invoice',
+          Date: inv.date,
+          Description: inv.description,
+          Reference: inv.reference,
+          Amount: inv.outstanding.toFixed(2),
+          Age: `${inv.age} days`,
+        })
+      })
+      unreconciledItems.unpaidPurchases.forEach((pur) => {
+        data.push({
+          Type: 'Unpaid Purchase',
+          Date: pur.date,
+          Description: pur.description,
+          Reference: pur.reference,
+          Amount: pur.outstanding.toFixed(2),
+          Age: `${pur.age} days`,
+        })
+      })
+      data.push({
+        Type: 'TOTAL',
+        Date: '',
+        Description: '',
+        Reference: '',
+        Amount: unreconciledItems.totals.total.toFixed(2),
+        Age: '',
+      })
+      exportToExcel(data, `unreconciled-items-${unreconciledItems.asOfDate}`, 'Unreconciled Items')
     }
   }
 
@@ -252,6 +439,14 @@ const Reports = () => {
     { id: 'income-statement', name: 'Income Statement', icon: TrendingUp },
     { id: 'balance-sheet', name: 'Balance Sheet', icon: Scale },
     { id: 'vat', name: 'VAT Report', icon: FileText },
+    { id: 'vat201', name: 'VAT 201 (SA)', icon: Receipt },
+    { id: 'ar-aging', name: 'AR Aging', icon: Clock },
+    { id: 'ap-aging', name: 'AP Aging', icon: Clock },
+    { id: 'cash-flow', name: 'Cash Flow', icon: TrendingUp },
+    { id: 'pl-by-period', name: 'P&L by Period', icon: TrendingUp },
+    { id: 'customer-statement', name: 'Customer Statement', icon: Users },
+    { id: 'supplier-statement', name: 'Supplier Statement', icon: Truck },
+    { id: 'unreconciled-items', name: 'Unreconciled Items', icon: AlertCircle },
   ]
 
   const periodOptions = [
@@ -860,6 +1055,574 @@ const Reports = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* AR Aging */}
+        {activeReport === 'ar-aging' && (
+          <>
+            {arAgingLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <p className="text-sm text-gray-500 mb-4">As of {formatDate(arAging?.asOfDate)}. Outstanding invoices (sent/overdue).</p>
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Customer</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Current</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">31-60 days</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">61-90 days</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Over 90</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {arAging?.rows?.map((r) => (
+                      <tr key={r.clientId} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.clientName}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.current, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.days_31_60, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.days_61_90, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.over_90, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono font-semibold">{formatCurrency(r.total, activeCompany?.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100">
+                    <tr className="font-bold">
+                      <td className="px-4 py-3 text-right">TOTAL</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(arAging?.totals?.current ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(arAging?.totals?.days_31_60 ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(arAging?.totals?.days_61_90 ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(arAging?.totals?.over_90 ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(arAging?.totals?.total ?? 0, activeCompany?.currency)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* AP Aging */}
+        {activeReport === 'ap-aging' && (
+          <>
+            {apAgingLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <p className="text-sm text-gray-500 mb-4">As of {formatDate(apAging?.asOfDate)}. Outstanding supplier invoices (unpaid/overdue).</p>
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Supplier</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Current</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">31-60 days</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">61-90 days</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Over 90</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {apAging?.rows?.map((r) => (
+                      <tr key={r.supplierId} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.supplierName}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.current, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.days_31_60, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.days_61_90, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(r.over_90, activeCompany?.currency)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono font-semibold">{formatCurrency(r.total, activeCompany?.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100">
+                    <tr className="font-bold">
+                      <td className="px-4 py-3 text-right">TOTAL</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(apAging?.totals?.current ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(apAging?.totals?.days_31_60 ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(apAging?.totals?.days_61_90 ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(apAging?.totals?.over_90 ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(apAging?.totals?.total ?? 0, activeCompany?.currency)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* VAT 201 (South Africa) */}
+        {activeReport === 'vat201' && (
+          <>
+            {vat201Loading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-12 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <p className="text-sm text-gray-500">SARS VAT 201 style (South Africa). Use period for the VAT period.</p>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Box 1 – Output tax</span>
+                    <span className="font-mono font-semibold">{formatCurrency(vat201Report?.box1OutputTax ?? 0, activeCompany?.currency)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Box 4 – Input tax</span>
+                    <span className="font-mono font-semibold">{formatCurrency(vat201Report?.box4InputTax ?? 0, activeCompany?.currency)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-3">
+                    <span className="font-semibold text-gray-900">Box 7 – Net VAT</span>
+                    <span className={`font-mono font-bold ${(vat201Report?.box7NetVAT ?? 0) >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {formatCurrency(vat201Report?.box7NetVAT ?? 0, activeCompany?.currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Cash Flow Statement */}
+        {activeReport === 'cash-flow' && (
+          <>
+            {cashFlowLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Operating</h4>
+                  <div className="pl-4 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Net Income</span>
+                      <span className="font-mono">{formatCurrency(cashFlow?.netIncome ?? 0, activeCompany?.currency)}</span>
+                    </div>
+                    {cashFlow?.operating?.items?.filter((a) => Math.abs(a.balance) > 0.001).map((a) => (
+                      <div key={a.id} className="flex justify-between text-sm">
+                        <span className="text-gray-600">{a.name}</span>
+                        <span className="font-mono">{formatCurrency(a.balance, activeCompany?.currency)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                      <span>Operating total</span>
+                      <span className="font-mono">{formatCurrency(cashFlow?.operating?.total ?? 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Investing</h4>
+                  <div className="pl-4 space-y-1">
+                    {cashFlow?.investing?.items?.filter((a) => Math.abs(a.balance) > 0.001).length > 0
+                      ? cashFlow.investing.items.map((a) => (
+                          <div key={a.id} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{a.name}</span>
+                            <span className="font-mono">{formatCurrency(a.balance, activeCompany?.currency)}</span>
+                          </div>
+                        ))
+                      : <p className="text-sm text-gray-500">No investing activity</p>}
+                    <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                      <span>Investing total</span>
+                      <span className="font-mono">{formatCurrency(cashFlow?.investing?.total ?? 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Financing</h4>
+                  <div className="pl-4 space-y-1">
+                    {cashFlow?.financing?.items?.filter((a) => Math.abs(a.balance) > 0.001).length > 0
+                      ? cashFlow.financing.items.map((a) => (
+                          <div key={a.id} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{a.name}</span>
+                            <span className="font-mono">{formatCurrency(a.balance, activeCompany?.currency)}</span>
+                          </div>
+                        ))
+                      : <p className="text-sm text-gray-500">No financing activity</p>}
+                    <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                      <span>Financing total</span>
+                      <span className="font-mono">{formatCurrency(cashFlow?.financing?.total ?? 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between px-4 py-3 bg-primary-50 rounded-lg font-bold text-lg">
+                  <span>Net change in cash</span>
+                  <span className="font-mono">{formatCurrency(cashFlow?.netChangeInCash ?? 0, activeCompany?.currency)}</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* P&L by Period */}
+        {activeReport === 'pl-by-period' && (
+          <>
+            <div className="mb-4 flex flex-wrap gap-4 items-end">
+              <div className="text-sm text-gray-600">Period 1: {formatDate(dateRange.start)} – {formatDate(dateRange.end)}</div>
+              <div className="flex gap-2 items-center">
+                <Input
+                  label="Period 2 start"
+                  type="date"
+                  value={plCompareRange.start2}
+                  onChange={(e) => setPlCompareRange((r) => ({ ...r, start2: e.target.value }))}
+                  className="w-40"
+                />
+                <Input
+                  label="Period 2 end"
+                  type="date"
+                  value={plCompareRange.end2}
+                  onChange={(e) => setPlCompareRange((r) => ({ ...r, end2: e.target.value }))}
+                  className="w-40"
+                />
+              </div>
+            </div>
+            {plByPeriodLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Metric</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Period 1</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Period 2</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Revenue</td>
+                      <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(plByPeriod?.period1?.revenue ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(plByPeriod?.period2?.revenue ?? 0, activeCompany?.currency)}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Expenses</td>
+                      <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(plByPeriod?.period1?.expenses ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(plByPeriod?.period2?.expenses ?? 0, activeCompany?.currency)}</td>
+                    </tr>
+                    <tr className="font-semibold">
+                      <td className="px-4 py-3 text-sm text-gray-900">Net Profit</td>
+                      <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(plByPeriod?.period1?.netProfit ?? 0, activeCompany?.currency)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-mono">{formatCurrency(plByPeriod?.period2?.netProfit ?? 0, activeCompany?.currency)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Customer Statement */}
+        {activeReport === 'customer-statement' && (
+          <>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+              <select
+                value={statementClientId}
+                onChange={(e) => setStatementClientId(e.target.value)}
+                className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+              >
+                <option value="">Select a customer</option>
+                {(clients ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            {customerStmtLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : !statementClientId ? (
+              <p className="text-gray-500">Select a customer to view their statement.</p>
+            ) : (
+              <div className="space-y-4">
+                {customerStatement?.client && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="font-semibold text-gray-900">{customerStatement.client.name}</p>
+                    {customerStatement.client.email && <p className="text-sm text-gray-600">{customerStatement.client.email}</p>}
+                  </div>
+                )}
+                <div className="flex justify-between py-2 border-b">
+                  <span className="font-medium">Opening Balance</span>
+                  <span className="font-mono">{formatCurrency(customerStatement?.openingBalance ?? 0, activeCompany?.currency)}</span>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Reference</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Debit</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Credit</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {customerStatement?.transactions?.map((t, i) => (
+                      <tr key={i}>
+                        <td className="px-4 py-2 text-sm">{formatDate(t.date)}</td>
+                        <td className="px-4 py-2 text-sm capitalize">{t.type}</td>
+                        <td className="px-4 py-2 text-sm">{t.reference}</td>
+                        <td className="px-4 py-2 text-sm text-right font-mono">{t.debit > 0 ? formatCurrency(t.debit, activeCompany?.currency) : '-'}</td>
+                        <td className="px-4 py-2 text-sm text-right font-mono">{t.credit > 0 ? formatCurrency(t.credit, activeCompany?.currency) : '-'}</td>
+                        <td className="px-4 py-2 text-sm text-right font-mono">{t.balance != null ? formatCurrency(t.balance, activeCompany?.currency) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex justify-between py-3 border-t-2 font-bold">
+                  <span>Closing Balance</span>
+                  <span className="font-mono">{formatCurrency(customerStatement?.closingBalance ?? 0, activeCompany?.currency)}</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Supplier Statement */}
+        {activeReport === 'supplier-statement' && (
+          <>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+              <select
+                value={statementSupplierId}
+                onChange={(e) => setStatementSupplierId(e.target.value)}
+                className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+              >
+                <option value="">Select a supplier</option>
+                {(suppliers ?? []).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            {supplierStmtLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : !statementSupplierId ? (
+              <p className="text-gray-500">Select a supplier to view their statement.</p>
+            ) : (
+              <div className="space-y-4">
+                {supplierStatement?.supplier && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="font-semibold text-gray-900">{supplierStatement.supplier.name}</p>
+                    {supplierStatement.supplier.email && <p className="text-sm text-gray-600">{supplierStatement.supplier.email}</p>}
+                  </div>
+                )}
+                <div className="flex justify-between py-2 border-b">
+                  <span className="font-medium">Opening Balance</span>
+                  <span className="font-mono">{formatCurrency(supplierStatement?.openingBalance ?? 0, activeCompany?.currency)}</span>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Reference</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Debit</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Credit</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {supplierStatement?.transactions?.map((t, i) => (
+                      <tr key={i}>
+                        <td className="px-4 py-2 text-sm">{formatDate(t.date)}</td>
+                        <td className="px-4 py-2 text-sm capitalize">{t.type}</td>
+                        <td className="px-4 py-2 text-sm">{t.reference}</td>
+                        <td className="px-4 py-2 text-sm text-right font-mono">{t.debit > 0 ? formatCurrency(t.debit, activeCompany?.currency) : '-'}</td>
+                        <td className="px-4 py-2 text-sm text-right font-mono">{t.credit > 0 ? formatCurrency(t.credit, activeCompany?.currency) : '-'}</td>
+                        <td className="px-4 py-2 text-sm text-right font-mono">{t.balance != null ? formatCurrency(t.balance, activeCompany?.currency) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex justify-between py-3 border-t-2 font-bold">
+                  <span>Closing Balance</span>
+                  <span className="font-mono">{formatCurrency(supplierStatement?.closingBalance ?? 0, activeCompany?.currency)}</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Unreconciled Items Report */}
+        {activeReport === 'unreconciled-items' && (
+          <>
+            {unreconciledLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <p className="text-sm text-gray-500">As of {formatDate(unreconciledItems?.asOfDate)}. Items that need reconciliation.</p>
+
+                {/* Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <p className="text-sm text-gray-600">Unreconciled Bank Transactions</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {formatCurrency(unreconciledItems?.totals?.bankTransactions ?? 0, activeCompany?.currency)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {unreconciledItems?.bankTransactions?.length ?? 0} transaction(s)
+                    </p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <p className="text-sm text-gray-600">Unpaid Invoices</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatCurrency(unreconciledItems?.totals?.unpaidInvoices ?? 0, activeCompany?.currency)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {unreconciledItems?.unpaidInvoices?.length ?? 0} invoice(s)
+                    </p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                    <p className="text-sm text-gray-600">Unpaid Purchases</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {formatCurrency(unreconciledItems?.totals?.unpaidPurchases ?? 0, activeCompany?.currency)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {unreconciledItems?.unpaidPurchases?.length ?? 0} purchase(s)
+                    </p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <p className="text-sm text-gray-600">Total Unreconciled</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {formatCurrency(unreconciledItems?.totals?.total ?? 0, activeCompany?.currency)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">All items</p>
+                  </div>
+                </div>
+
+                {/* Bank Transactions */}
+                {unreconciledItems?.bankTransactions?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Unreconciled Bank Transactions</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Description</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Reference</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Amount</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Age</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {unreconciledItems.bankTransactions.map((t) => (
+                            <tr key={t.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm text-gray-600">{formatDate(t.date)}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900">{t.description}</td>
+                              <td className="px-4 py-3 text-sm text-gray-500">{t.reference || '-'}</td>
+                              <td className="px-4 py-3 text-sm text-right font-mono">
+                                {formatCurrency(t.outstanding, activeCompany?.currency)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-500">{t.age} days</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Unpaid Invoices */}
+                {unreconciledItems?.unpaidInvoices?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Unpaid Invoices</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Invoice #</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Client</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Due Date</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Outstanding</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Age</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {unreconciledItems.unpaidInvoices.map((inv) => (
+                            <tr key={inv.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{inv.reference}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{inv.client || '-'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{formatDate(inv.date)}</td>
+                              <td className="px-4 py-3 text-sm text-right font-mono">
+                                {formatCurrency(inv.outstanding, activeCompany?.currency)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-500">{inv.age} days</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Unpaid Purchases */}
+                {unreconciledItems?.unpaidPurchases?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Unpaid Supplier Invoices</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Invoice #</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Supplier</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Due Date</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Outstanding</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Age</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {unreconciledItems.unpaidPurchases.map((pur) => (
+                            <tr key={pur.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{pur.reference}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{pur.supplier || '-'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{formatDate(pur.date)}</td>
+                              <td className="px-4 py-3 text-sm text-right font-mono">
+                                {formatCurrency(pur.outstanding, activeCompany?.currency)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-500">{pur.age} days</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {(!unreconciledItems?.bankTransactions?.length && !unreconciledItems?.unpaidInvoices?.length && !unreconciledItems?.unpaidPurchases?.length) && (
+                  <div className="text-center py-12 text-gray-500">
+                    <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>All items are reconciled!</p>
+                  </div>
+                )}
               </div>
             )}
           </>

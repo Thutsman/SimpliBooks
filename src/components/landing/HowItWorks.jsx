@@ -1,26 +1,26 @@
-import { UserPlus, Building, Rocket } from 'lucide-react'
+import { UserPlus, Settings, LayoutDashboard, HeartHandshake } from 'lucide-react'
 
 const steps = [
   {
     icon: UserPlus,
     step: '01',
-    title: 'Create Your Account',
+    title: 'Easy Onboarding',
     description:
-      'Sign up in seconds with your email or Google account. No credit card required for the free trial.',
+      'Sign up and set up your business details in minutes. Our 6-step wizard configures everything for your region.',
   },
   {
-    icon: Building,
+    icon: LayoutDashboard,
     step: '02',
-    title: 'Set Up Your Company',
+    title: 'Automate Transactions',
     description:
-      'Add your business details and customize your chart of accounts. We provide sensible defaults to get you started.',
+      'Create quotes, invoices, and purchase orders. Watch as the system auto-posts journal entries and updates inventory.',
   },
   {
-    icon: Rocket,
+    icon: HeartHandshake,
     step: '03',
-    title: 'Start Managing Finances',
+    title: 'Scale & Comply',
     description:
-      'Create invoices, track expenses, reconcile bank statements, and generate reports. It\'s that simple.',
+      'Process payroll, reconcile bank statements, and generate SARS-ready reports. Focus on growth, we handle the compliance.',
   },
 ]
 
@@ -36,14 +36,13 @@ const HowItWorks = () => {
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-primary-600 font-semibold text-sm uppercase tracking-wider">
-            How It Works
+            Lifecycle
           </span>
           <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-gray-900">
-            Get Started in Three Simple Steps
+            A Day in the Life with SimpliBooks
           </h2>
           <p className="mt-4 text-lg text-gray-600">
-            No complex setup. No learning curve. Just simple, effective
-            accounting for your business.
+            Automate every part of your business from initial quote to final tax filing.
           </p>
         </div>
 

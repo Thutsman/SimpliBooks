@@ -1,48 +1,50 @@
 import {
   FileText,
-  CreditCard,
-  BarChart3,
-  Users,
-  Building2,
-  Shield,
+  Package,
+  Wallet,
+  Globe,
+  ShieldCheck,
+  TrendingUp,
+  Clock,
+  LayoutDashboard
 } from 'lucide-react'
 
 const features = [
   {
     icon: FileText,
-    title: 'Invoice Management',
+    title: 'Professional Accounting',
     description:
-      'Create professional invoices in seconds. Track payments, send reminders, and get paid faster with automated follow-ups.',
+      'Full double-entry engine. Generate General Ledger, Trial Balance, and SARS-compliant VAT 201 reports instantly.',
   },
   {
-    icon: CreditCard,
-    title: 'Expense Tracking',
+    icon: Package,
+    title: 'Smart Inventory',
     description:
-      'Record purchases, categorize expenses, and keep your books organized. Import bank statements with a single click.',
+      'Track stock levels in real-time. Automated COGS calculations, FIFO valuation, and low-stock alerts to keep you selling.',
   },
   {
-    icon: BarChart3,
-    title: 'Financial Reports',
+    icon: Wallet,
+    title: 'Integrated Payroll',
     description:
-      'Generate trial balance, VAT reports, and profit/loss statements instantly. Export to PDF or Excel anytime.',
+      'Pay your team with ease. Automated PAYE, UIF, and SDL calculations with digital payslips and IRP5 generation.',
   },
   {
-    icon: Users,
-    title: 'Client Management',
+    icon: Globe,
+    title: 'Multi-Currency & SADC',
     description:
-      'Store client details, track their invoices, and maintain relationships. Everything you need in one place.',
+      'Built for South Africa, Botswana, and Zimbabwe. Manage ZAR, USD, and BWP with automated forex gain/loss tracking.',
   },
   {
-    icon: Building2,
-    title: 'Multi-Company Support',
+    icon: Clock,
+    title: 'Bank Reconciliation',
     description:
-      'Manage multiple businesses from a single account. Switch between companies seamlessly with separate books.',
+      'Connect your bank and reconcile in minutes. Intelligent matching rules learn your business patterns to save you time.',
   },
   {
-    icon: Shield,
-    title: 'Bank-Level Security',
+    icon: LayoutDashboard,
+    title: 'Enterprise Controls',
     description:
-      'Your data is encrypted and secured with industry-standard protocols. Regular backups ensure you never lose data.',
+      'Full audit trails, customizable user roles, and advanced data exports. Secure, scalable management for growing teams.',
   },
 ]
 

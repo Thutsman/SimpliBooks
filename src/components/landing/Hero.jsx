@@ -4,9 +4,10 @@ import Button from '../ui/Button'
 
 const Hero = () => {
   const benefits = [
+    'Tax Compliant (SA, BW, ZW)',
+    'Integrated Payroll',
+    'Inventory Tracking',
     'Multi-Currency Support',
-    'Customizable Tax Rates',
-    'Invoices & Quotations',
   ]
 
   return (
@@ -25,7 +26,7 @@ const Hero = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-600"></span>
             </span>
-            Trusted by SMEs & Accountants Worldwide
+            The Modern Alternative to SAGE Pastel
           </div>
 
           {/* Headline */}
@@ -38,9 +39,9 @@ const Hero = () => {
 
           {/* Subheadline */}
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Create quotations, manage invoices, reconcile bank statements,
-            and generate tax-ready reports - with multi-currency support for
-            USD, ZAR, and BWP.
+            Complete accounting with Payroll and Inventory built in. 
+            Generate tax-compliant reports, manage multi-currency transactions, 
+            and reconcile bank statements with ease.
           </p>
 
           {/* CTA Buttons */}

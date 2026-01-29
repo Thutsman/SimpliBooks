@@ -61,34 +61,34 @@ Build a proper double-entry accounting engine that automatically creates journal
 
 ---
 
-## Phase 3: Advanced Reporting 🔄 IN PROGRESS
+## Phase 3: Advanced Reporting ✅ COMPLETED
 
-### To Be Implemented
+### Implemented Features
 
-| Feature | Status | Priority |
-|---------|--------|----------|
-| Trial Balance Report | ❌ Not Started | High |
-| AR Aging Report (30/60/90 days) | ❌ Not Started | High |
-| AP Aging Report (30/60/90 days) | ❌ Not Started | High |
-| Cash Flow Statement | ❌ Not Started | Medium |
-| VAT 201 Report (South Africa) | ❌ Not Started | High |
-| Profit & Loss by Period | ❌ Not Started | Medium |
-| Customer Statement | ❌ Not Started | Medium |
-| Supplier Statement | ❌ Not Started | Medium |
+| Feature | Status | File |
+|---------|--------|------|
+| Trial Balance Report | ✅ Done (journal-entry based) | `src/hooks/useReports.js` |
+| AR Aging Report (30/60/90 days) | ✅ Done | `src/hooks/useReports.js` |
+| AP Aging Report (30/60/90 days) | ✅ Done | `src/hooks/useReports.js` |
+| Cash Flow Statement | ✅ Done | `src/hooks/useReports.js` |
+| VAT 201 Report (South Africa) | ✅ Done | `src/hooks/useReports.js` |
+| Profit & Loss by Period | ✅ Done | `src/hooks/useReports.js` |
+| Customer Statement | ✅ Done | `src/hooks/useReports.js` |
+| Supplier Statement | ✅ Done | `src/hooks/useReports.js` |
 
 ---
 
-## Phase 4: Bank Reconciliation 🔲 NOT STARTED
+## Phase 4: Bank Reconciliation ✅ COMPLETED
 
-### To Be Implemented
+### Implemented Features
 
-| Feature | Status | Priority |
-|---------|--------|----------|
-| Import Bank Statements (CSV/OFX) | ❌ Not Started | High |
-| Manual Transaction Matching | ❌ Not Started | High |
-| Auto-matching Rules | ❌ Not Started | Medium |
-| Reconciliation History | ❌ Not Started | Medium |
-| Unreconciled Items Report | ❌ Not Started | Medium |
+| Feature | Status | File |
+|---------|--------|------|
+| Import Bank Statements (CSV) | ✅ Done | `src/pages/Banking.jsx`, `src/hooks/useBanking.js` |
+| Manual Transaction Matching | ✅ Done | `src/pages/Banking.jsx`, `src/hooks/useBanking.js` |
+| Auto-matching Rules | ✅ Done | `src/hooks/useBanking.js`, `009_bank_matching_rules.sql` |
+| Reconciliation History | ✅ Done | `src/pages/Banking.jsx`, `010_reconciliation_history.sql` |
+| Unreconciled Items Report | ✅ Done | `src/hooks/useReports.js`, `src/pages/Reports.jsx` |
 
 ---
 
@@ -194,24 +194,22 @@ Build a proper double-entry accounting engine that automatically creates journal
 |-------|--------|------------|
 | Phase 1: Accounting Foundation | ✅ Complete | 100% |
 | Phase 2: UX & Onboarding | ✅ Complete | 100% |
-| Phase 3: Advanced Reporting | 🔄 In Progress | 30% |
-| Phase 4: Bank Reconciliation | 🔲 Not Started | 0% |
+| Phase 3: Advanced Reporting | ✅ Complete | 100% |
+| Phase 4: Bank Reconciliation | ✅ Complete | 100% |
 | Phase 5: Inventory Management | 🔲 Not Started | 0% |
 | Phase 6: Multi-Currency | 🔲 Not Started | 0% |
 | Phase 7: Advanced Features | 🔲 Not Started | 0% |
 | Phase 8: Payroll | 🔲 Not Started | 0% |
 
-**Overall Progress: ~25%**
+**Overall Progress: ~45%**
 
 ---
 
 ## Next Recommended Steps
 
-1. **Trial Balance Report** - Essential for accountants to verify books
-2. **AR/AP Aging Reports** - Critical for cash flow management
-3. **VAT 201 Report** - Required for SARS compliance in South Africa
-4. **Credit Notes** - Common business requirement
-5. **Data Export** - Users need to export data to Excel/PDF
+1. **Phase 5: Inventory Management** - Products catalog, stock tracking, COGS calculation
+2. **Credit Notes** - Common business requirement
+3. **Data Export** - PDF export for all reports (Excel export implemented for all Phase 3 & 4 reports)
 
 ---
 
@@ -222,14 +220,18 @@ Build a proper double-entry accounting engine that automatically creates journal
 - `006_journal_entries.sql` - Journal entries schema
 - `007_invoice_auto_posting.sql` - Invoice triggers
 - `008_purchase_auto_posting.sql` - Purchase triggers
+- `009_bank_matching_rules.sql` - Bank matching rules schema
+- `010_reconciliation_history.sql` - Reconciliation history/audit trail
 
 ### Frontend
 - `src/pages/Onboarding.jsx` - Onboarding wizard
 - `src/hooks/useOnboarding.js` - Onboarding state hook
-- `src/hooks/useReports.js` - Financial reports hooks
+- `src/hooks/useReports.js` - Financial reports hooks (Trial Balance, GL, Income Statement, Balance Sheet, VAT, VAT 201, AR/AP Aging, Cash Flow, P&L by Period, Customer/Supplier Statement, Unreconciled Items)
+- `src/hooks/useBanking.js` - Banking hooks (import, categorize, match, auto-match, reconciliation history)
 - `src/hooks/useClients.js` - Client CRUD with validation
 - `src/hooks/useSuppliers.js` - Supplier CRUD with validation
-- `src/pages/Reports.jsx` - Reports UI
+- `src/pages/Reports.jsx` - Reports UI (all Phase 3 & 4 report tabs and Excel export)
+- `src/pages/Banking.jsx` - Banking UI (CSV import, manual matching, auto-match, reconciliation history)
 - `src/pages/InvoiceDetail.jsx` - Quick Add Client feature
 - `src/pages/PurchaseDetail.jsx` - Quick Add Supplier feature
 - `src/components/auth/ProtectedRoute.jsx` - Onboarding redirect
@@ -237,4 +239,4 @@ Build a proper double-entry accounting engine that automatically creates journal
 
 ---
 
-*Last Updated: January 27, 2026*
+*Last Updated: January 29, 2026*

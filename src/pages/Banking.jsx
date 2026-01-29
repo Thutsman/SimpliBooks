@@ -1,12 +1,14 @@
-import { useState, useRef } from 'react'
-import { Upload, CheckCircle, Circle, Tag, Trash2, Filter } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Upload, CheckCircle, Circle, Tag, Trash2, Filter, Link2, History, Zap } from 'lucide-react'
 import { useBanking } from '../hooks/useBanking'
 import { useClients } from '../hooks/useClients'
 import { useSuppliers } from '../hooks/useSuppliers'
 import { useAccounts } from '../hooks/useAccounts'
+import { useInvoices } from '../hooks/useInvoices'
+import { usePurchases } from '../hooks/usePurchases'
 import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
-import Input from '../components/ui/Input'
+import Input, { Textarea } from '../components/ui/Input'
 import { Select } from '../components/ui/Input'
 import Modal, { ConfirmModal } from '../components/ui/Modal'
 import DataTable from '../components/dashboard/DataTable'
@@ -19,8 +21,17 @@ const Banking = () => {
   const [showImportModal, setShowImportModal] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showMatchModal, setShowMatchModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState(null)
   const [filterReconciled, setFilterReconciled] = useState('all')
+  const [matchingSuggestions, setMatchingSuggestions] = useState([])
+  const [matchForm, setMatchForm] = useState({
+    matchToType: '',
+    matchToId: '',
+    notes: '',
+    autoReconcile: false,
+  })
   const [importedData, setImportedData] = useState([])
   const [columnMapping, setColumnMapping] = useState({
     date: '',
@@ -42,8 +53,14 @@ const Banking = () => {
     categorizeTransaction,
     reconcileTransaction,
     deleteTransaction,
+    matchTransaction,
+    autoMatchTransactions,
+    getMatchingSuggestions,
+    reconciliationHistory,
     isImporting,
     isCategorizing,
+    isMatching,
+    isAutoMatching,
   } = useBanking({
     reconciled: filterReconciled === 'all' ? undefined : filterReconciled === 'reconciled',
   })
@@ -51,7 +68,16 @@ const Banking = () => {
   const { clients } = useClients()
   const { suppliers } = useSuppliers()
   const { accounts } = useAccounts()
+  const { invoices } = useInvoices({ status: 'all' })
+  const { purchases } = usePurchases({ status: 'all' })
   const toast = useToast()
+
+  // Load suggestions when match modal opens
+  useEffect(() => {
+    if (showMatchModal && selectedTransaction) {
+      getMatchingSuggestions(selectedTransaction.id).then(setMatchingSuggestions).catch(() => setMatchingSuggestions([]))
+    }
+  }, [showMatchModal, selectedTransaction])
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -159,6 +185,51 @@ const Banking = () => {
     }
   }
 
+  const handleMatch = async () => {
+    if (!matchForm.matchToType || !matchForm.matchToId) {
+      toast.error('Please select what to match this transaction to')
+      return
+    }
+
+    try {
+      await matchTransaction({
+        transactionId: selectedTransaction.id,
+        matchToType: matchForm.matchToType,
+        matchToId: matchForm.matchToId,
+        notes: matchForm.notes || null,
+        autoReconcile: matchForm.autoReconcile,
+      })
+      toast.success('Transaction matched' + (matchForm.autoReconcile ? ' and reconciled' : ''))
+      setShowMatchModal(false)
+      setSelectedTransaction(null)
+      setMatchForm({ matchToType: '', matchToId: '', notes: '', autoReconcile: false })
+      setMatchingSuggestions([])
+    } catch (error) {
+      toast.error(error.message || 'Failed to match transaction')
+    }
+  }
+
+  const handleAutoMatch = async () => {
+    try {
+      const result = await autoMatchTransactions({})
+      toast.success(`Auto-matched ${result.matched} transaction(s)`)
+      if (result.errors?.length > 0) {
+        toast.error(`${result.errors.length} error(s) occurred`)
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to auto-match transactions')
+    }
+  }
+
+  const handleSuggestionClick = (suggestion) => {
+    setMatchForm({
+      matchToType: suggestion.type,
+      matchToId: suggestion.id,
+      notes: '',
+      autoReconcile: false,
+    })
+  }
+
   const categoryOptions = {
     client: clients.map((c) => ({ value: c.id, label: c.name })),
     supplier: suppliers.map((s) => ({ value: s.id, label: s.name })),
@@ -237,6 +308,23 @@ const Banking = () => {
             onClick={(e) => {
               e.stopPropagation()
               setSelectedTransaction(row)
+              setMatchForm({
+                matchToType: row.invoice_id ? 'invoice' : row.supplier_invoice_id ? 'supplier_invoice' : row.account_id ? 'account' : '',
+                matchToId: row.invoice_id || row.supplier_invoice_id || row.account_id || '',
+                notes: '',
+                autoReconcile: false,
+              })
+              setShowMatchModal(true)
+            }}
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+            title="Match"
+          >
+            <Link2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setSelectedTransaction(row)
               setCategoryForm({
                 categoryType: row.category_type || '',
                 categoryId: row.client_id || row.supplier_id || row.account_id || '',
@@ -283,6 +371,14 @@ const Banking = () => {
           <Button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
+          </Button>
+          <Button variant="outline" onClick={handleAutoMatch} loading={isAutoMatching} className="w-full sm:w-auto">
+            <Zap className="w-4 h-4 mr-2" />
+            Auto-Match
+          </Button>
+          <Button variant="outline" onClick={() => setShowHistoryModal(true)} className="w-full sm:w-auto">
+            <History className="w-4 h-4 mr-2" />
+            History
           </Button>
         </div>
       </div>
@@ -451,6 +547,194 @@ const Banking = () => {
             <Button onClick={handleCategorize} loading={isCategorizing}>
               Save Category
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Match Modal */}
+      <Modal
+        isOpen={showMatchModal}
+        onClose={() => {
+          setShowMatchModal(false)
+          setMatchForm({ matchToType: '', matchToId: '', notes: '', autoReconcile: false })
+          setMatchingSuggestions([])
+        }}
+        title="Match Transaction"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm text-gray-500">Transaction</p>
+            <p className="font-medium">{selectedTransaction?.description}</p>
+            <p className={selectedTransaction?.type === 'credit' ? 'text-green-600' : 'text-red-600'}>
+              {selectedTransaction?.type === 'credit' ? '+' : '-'}
+              {formatCurrency(selectedTransaction?.amount, activeCompany?.currency)}
+            </p>
+            <p className="text-sm text-gray-500">{formatDate(selectedTransaction?.date)}</p>
+          </div>
+
+          {/* Suggestions */}
+          {matchingSuggestions.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Suggestions</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {matchingSuggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSuggestionClick(s)}
+                    className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 hover:border-primary-300 transition-colors"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {s.type === 'invoice' ? `Invoice ${s.invoice_number}` : `Purchase ${s.invoice_number}`}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {s.client || s.supplier} • {formatDate(s.date)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-sm">{formatCurrency(s.amount, activeCompany?.currency)}</p>
+                        <p className="text-xs text-gray-500">Score: {Math.round(s.score)}%</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Select
+            label="Match To"
+            value={matchForm.matchToType}
+            onChange={(e) => setMatchForm({ ...matchForm, matchToType: e.target.value, matchToId: '' })}
+            options={[
+              { value: 'invoice', label: 'Invoice' },
+              { value: 'supplier_invoice', label: 'Supplier Invoice' },
+              { value: 'account', label: 'Account' },
+            ]}
+            placeholder="Select match type"
+          />
+
+          {matchForm.matchToType === 'invoice' && (
+            <Select
+              label="Invoice"
+              value={matchForm.matchToId}
+              onChange={(e) => setMatchForm({ ...matchForm, matchToId: e.target.value })}
+              options={(invoices || []).map((inv) => ({
+                value: inv.id,
+                label: `${inv.invoice_number} - ${inv.client?.name || 'Unknown'} - ${formatCurrency(inv.total, activeCompany?.currency)}`,
+              }))}
+              placeholder="Select invoice"
+            />
+          )}
+
+          {matchForm.matchToType === 'supplier_invoice' && (
+            <Select
+              label="Supplier Invoice"
+              value={matchForm.matchToId}
+              onChange={(e) => setMatchForm({ ...matchForm, matchToId: e.target.value })}
+              options={(purchases || []).map((pur) => ({
+                value: pur.id,
+                label: `${pur.invoice_number} - ${pur.supplier?.name || 'Unknown'} - ${formatCurrency(pur.total, activeCompany?.currency)}`,
+              }))}
+              placeholder="Select supplier invoice"
+            />
+          )}
+
+          {matchForm.matchToType === 'account' && (
+            <Select
+              label="Account"
+              value={matchForm.matchToId}
+              onChange={(e) => setMatchForm({ ...matchForm, matchToId: e.target.value })}
+              options={accounts.map((acc) => ({
+                value: acc.id,
+                label: `${acc.code} - ${acc.name}`,
+              }))}
+              placeholder="Select account"
+            />
+          )}
+
+          <Textarea
+            label="Notes (optional)"
+            value={matchForm.notes}
+            onChange={(e) => setMatchForm({ ...matchForm, notes: e.target.value })}
+            placeholder="Add notes about this match"
+          />
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="autoReconcile"
+              checked={matchForm.autoReconcile}
+              onChange={(e) => setMatchForm({ ...matchForm, autoReconcile: e.target.checked })}
+              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+            />
+            <label htmlFor="autoReconcile" className="text-sm text-gray-700">
+              Automatically reconcile after matching
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowMatchModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleMatch} loading={isMatching}>
+              Match Transaction
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* History Modal */}
+      <Modal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        title="Reconciliation History"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="max-h-96 overflow-y-auto">
+            {reconciliationHistory.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No reconciliation history yet</p>
+            ) : (
+              <div className="space-y-3">
+                {reconciliationHistory.map((entry) => (
+                  <div key={entry.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {entry.bank_transaction?.description || 'Transaction'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(entry.reconciled_at)} • {entry.match_method === 'manual' ? 'Manual' : entry.match_method === 'auto_rule' ? 'Auto Rule' : 'Suggestion'}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        entry.action === 'reconciled' ? 'bg-green-100 text-green-700' :
+                        entry.action === 'matched' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {entry.action}
+                      </span>
+                    </div>
+                    {entry.matched_to_type && (
+                      <p className="text-xs text-gray-600">
+                        Matched to: {entry.matched_to_type} {entry.matched_to_id ? `(${entry.matched_to_id.substring(0, 8)}...)` : ''}
+                      </p>
+                    )}
+                    {entry.notes && (
+                      <p className="text-xs text-gray-500 mt-1">Note: {entry.notes}</p>
+                    )}
+                    {entry.reconciled_by_profile && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        By: {entry.reconciled_by_profile.full_name || entry.reconciled_by_profile.email}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </Modal>
