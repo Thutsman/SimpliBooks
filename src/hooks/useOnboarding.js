@@ -3,13 +3,11 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 export const useOnboarding = () => {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
-      if (!user?.id) return null
-
       const { data, error } = await supabase
         .from('profiles')
         .select('onboarding_completed, onboarding_completed_at')
@@ -31,7 +29,7 @@ export const useOnboarding = () => {
 
       return data
     },
-    enabled: !!user,
+    enabled: !!user?.id,
     staleTime: 60000, // 1 minute
   })
 
@@ -39,8 +37,6 @@ export const useOnboarding = () => {
   const { data: companies, isLoading: companiesLoading } = useQuery({
     queryKey: ['companies-check', user?.id],
     queryFn: async () => {
-      if (!user?.id) return []
-
       const { data, error } = await supabase
         .from('companies')
         .select('id')
@@ -50,9 +46,20 @@ export const useOnboarding = () => {
       if (error) throw error
       return data || []
     },
-    enabled: !!user,
+    enabled: !!user?.id,
     staleTime: 60000,
   })
+
+  // If auth is still loading, report as loading
+  if (authLoading) {
+    return {
+      needsOnboarding: false,
+      isLoading: true,
+      onboardingCompleted: false,
+      completedAt: null,
+      error: null,
+    }
+  }
 
   // User needs onboarding if:
   // 1. Profile says onboarding not completed, AND

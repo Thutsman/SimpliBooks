@@ -13,6 +13,8 @@ import {
   ChevronRight,
   CreditCard,
   X,
+  Package,
+  Warehouse,
 } from 'lucide-react'
 
 const navItems = [
@@ -20,6 +22,8 @@ const navItems = [
   { name: 'Quotations', href: '/dashboard/quotations', icon: ClipboardList },
   { name: 'Invoices', href: '/dashboard/invoices', icon: FileText },
   { name: 'Purchases', href: '/dashboard/purchases', icon: ShoppingCart },
+  { name: 'Products', href: '/dashboard/products', icon: Package },
+  { name: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
   { name: 'Clients', href: '/dashboard/clients', icon: Users },
   { name: 'Suppliers', href: '/dashboard/suppliers', icon: Truck },
   { name: 'Accounts', href: '/dashboard/accounts', icon: CreditCard },

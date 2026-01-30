@@ -32,6 +32,7 @@ export const DEFAULT_ACCOUNTS = [
   // Expenses
   { code: '5000', name: 'Cost of Goods Sold', type: 'expense', sub_type: 'cost_of_sales', is_system: true },
   { code: '5100', name: 'Purchases', type: 'expense', sub_type: 'cost_of_sales', is_system: true },
+  { code: '5110', name: 'Inventory Adjustments', type: 'expense', sub_type: 'cost_of_sales', is_system: true },
   { code: '6000', name: 'Salaries & Wages', type: 'expense', sub_type: 'operating_expense', is_system: false },
   { code: '6100', name: 'Rent Expense', type: 'expense', sub_type: 'operating_expense', is_system: false },
   { code: '6200', name: 'Utilities', type: 'expense', sub_type: 'operating_expense', is_system: false },

@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Trash2, Save, UserPlus } from 'lucide-react'
 import { usePurchases } from '../hooks/usePurchases'
 import { useSuppliers } from '../hooks/useSuppliers'
 import { useAccounts } from '../hooks/useAccounts'
+import { useProducts } from '../hooks/useProducts'
 import { useCompany } from '../context/CompanyContext'
 import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
@@ -22,6 +23,7 @@ const PurchaseDetail = () => {
   const { activeCompany } = useCompany()
   const { suppliers, createSupplier, isCreating: isCreatingSupplier } = useSuppliers()
   const { accounts } = useAccounts()
+  const { products, isLoading: productsLoading, refetchProducts } = useProducts()
 
   // Quick Add Supplier modal state
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
@@ -52,8 +54,14 @@ const PurchaseDetail = () => {
   })
 
   const [items, setItems] = useState([
-    { description: '', quantity: 1, unit_price: 0, vat_rate: 15, account_id: '' },
+    { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15, account_id: '' },
   ])
+  const itemsLocked = !isNew
+
+  // Refetch products when opening New Purchase so the dropdown has the latest list (e.g. after creating a product)
+  useEffect(() => {
+    if (isNew) refetchProducts()
+  }, [isNew, refetchProducts])
 
   useEffect(() => {
     if (purchaseData) {
@@ -69,6 +77,7 @@ const PurchaseDetail = () => {
       if (purchaseData.items && purchaseData.items.length > 0) {
         setItems(
           purchaseData.items.map((item) => ({
+            product_id: item.product_id || '',
             description: item.description || '',
             quantity: item.quantity || 1,
             unit_price: Number(item.unit_price) || 0,
@@ -101,8 +110,26 @@ const PurchaseDetail = () => {
   const handleAddItem = () => {
     setItems([
       ...items,
-      { description: '', quantity: 1, unit_price: 0, vat_rate: 15, account_id: '' },
+      { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15, account_id: '' },
     ])
+  }
+
+  const handleSelectProduct = (index, productId) => {
+    if (!productId) {
+      handleItemChange(index, 'product_id', '')
+      return
+    }
+    const product = products.find((p) => p.id === productId)
+    if (!product) return
+    const newItems = [...items]
+    newItems[index] = {
+      ...newItems[index],
+      product_id: product.id,
+      description: product.name || newItems[index].description,
+      unit_price: Number(product.purchase_cost) || 0,
+      vat_rate: Number(product.vat_rate_default) ?? 15,
+    }
+    setItems(newItems)
   }
 
   const handleRemoveItem = (index) => {
@@ -156,6 +183,7 @@ const PurchaseDetail = () => {
       .map((item) => {
         const { subtotal, vat } = calculateLineTotal(item)
         return {
+          product_id: item.product_id || null,
           description: item.description,
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
@@ -194,6 +222,7 @@ const PurchaseDetail = () => {
     value: a.id,
     label: `${a.code} - ${a.name}`,
   }))
+  const productOptions = products.map((p) => ({ value: p.id, label: p.sku ? `${p.name} (${p.sku})` : p.name }))
 
   if (!isNew && purchaseLoading) {
     return (
@@ -306,75 +335,100 @@ const PurchaseDetail = () => {
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Line Items</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Line Items</h2>
+              {itemsLocked && (
+                <span className="text-sm text-amber-600 font-medium">Line items locked (purchase already recorded)</span>
+              )}
+            </div>
 
             <div className="space-y-4">
               {items.map((item, index) => (
                 <div
                   key={index}
-                  className="grid grid-cols-12 gap-3 items-start p-4 bg-gray-50 rounded-lg"
+                  className="grid grid-cols-12 gap-2 items-start p-4 bg-gray-50 rounded-lg"
                 >
-                  <div className="col-span-12 sm:col-span-4">
+                  <div className="col-span-12 sm:col-span-2">
+                    <Select
+                      label="Product"
+                      placeholder={productsLoading ? 'Loading...' : 'Select product...'}
+                      value={item.product_id || ''}
+                      onChange={(e) => handleSelectProduct(index, e.target.value)}
+                      options={productOptions}
+                      disabled={itemsLocked || productsLoading}
+                    />
+                  </div>
+                  <div className="col-span-12 sm:col-span-2">
                     <Input
+                      label="Description"
                       placeholder="Description"
                       value={item.description}
                       onChange={(e) =>
                         handleItemChange(index, 'description', e.target.value)
                       }
+                      disabled={itemsLocked}
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-3">
+                  <div className="col-span-6 sm:col-span-2">
                     <Select
+                      label="Account"
                       value={item.account_id}
                       onChange={(e) =>
                         handleItemChange(index, 'account_id', e.target.value)
                       }
                       options={accountOptions}
                       placeholder="Account"
+                      disabled={itemsLocked}
                     />
                   </div>
                   <div className="col-span-3 sm:col-span-1">
                     <Input
+                      label="Qty"
                       type="number"
-                      placeholder="Qty"
+                      placeholder="0"
                       value={item.quantity}
                       onChange={(e) =>
                         handleItemChange(index, 'quantity', e.target.value)
                       }
                       min="0"
                       step="0.01"
+                      disabled={itemsLocked}
                     />
                   </div>
                   <div className="col-span-3 sm:col-span-2">
                     <Input
+                      label="Price"
                       type="number"
-                      placeholder="Price"
+                      placeholder="0.00"
                       value={item.unit_price}
                       onChange={(e) =>
                         handleItemChange(index, 'unit_price', e.target.value)
                       }
                       min="0"
                       step="0.01"
+                      disabled={itemsLocked}
                     />
                   </div>
-                  <div className="col-span-3 sm:col-span-1">
+                  <div className="col-span-3 sm:col-span-2">
                     <Input
+                      label="VAT %"
                       type="number"
-                      placeholder="VAT %"
+                      placeholder="0"
                       value={item.vat_rate}
                       onChange={(e) =>
                         handleItemChange(index, 'vat_rate', e.target.value)
                       }
                       min="0"
                       max="100"
+                      disabled={itemsLocked}
                     />
                   </div>
-                  <div className="col-span-3 sm:col-span-1 flex items-center justify-end">
+                  <div className="col-span-3 sm:col-span-1 flex items-end justify-end pb-1">
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                      disabled={items.length === 1}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-50 disabled:pointer-events-none"
+                      disabled={items.length === 1 || itemsLocked}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -386,15 +440,17 @@ const PurchaseDetail = () => {
               ))}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleAddItem}
-              className="w-full"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Line Item
-            </Button>
+            {!itemsLocked && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddItem}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Line Item
+              </Button>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">

@@ -21,6 +21,8 @@ import Purchases from './pages/Purchases'
 import PurchaseDetail from './pages/PurchaseDetail'
 import Accounts from './pages/Accounts'
 import Banking from './pages/Banking'
+import Products from './pages/Products'
+import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 
@@ -71,6 +73,8 @@ function App() {
             <Route path="purchases/:id" element={<PurchaseDetail />} />
             <Route path="accounts" element={<Accounts />} />
             <Route path="banking" element={<Banking />} />
+            <Route path="products" element={<Products />} />
+            <Route path="inventory" element={<Inventory />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
           </Route>

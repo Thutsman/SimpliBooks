@@ -92,18 +92,18 @@ Build a proper double-entry accounting engine that automatically creates journal
 
 ---
 
-## Phase 5: Inventory Management 🔲 NOT STARTED
+## Phase 5: Inventory Management ✅ COMPLETED
 
-### To Be Implemented
+### Implemented Features
 
-| Feature | Status | Priority |
-|---------|--------|----------|
-| Products/Services Catalog | ❌ Not Started | High |
-| Stock Levels Tracking | ❌ Not Started | Medium |
-| Cost of Goods Sold Auto-calc | ❌ Not Started | Medium |
-| Stock Valuation (FIFO/Avg) | ❌ Not Started | Low |
-| Low Stock Alerts | ❌ Not Started | Low |
-| Stock Take/Adjustment | ❌ Not Started | Medium |
+| Feature | Status | File |
+|---------|--------|------|
+| Products/Services Catalog | ✅ Done | `011_products_inventory.sql`, `src/pages/Products.jsx`, `src/hooks/useProducts.js` |
+| Stock Levels Tracking | ✅ Done | `products.qty_on_hand`, `inventory_movements`, `012_inventory_posting.sql` |
+| Cost of Goods Sold Auto-calc | ✅ Done | `012_inventory_posting.sql` (COGS on invoice sent) |
+| Stock Valuation (Avg) | ✅ Done | `products.avg_cost`, weighted avg trigger on `inventory_movements` |
+| Low Stock Alerts | ✅ Done | `src/hooks/useProducts.js` (lowStockProducts), Products & Inventory pages |
+| Stock Take/Adjustment | ✅ Done | `stock_adjustments`, `stock_adjustment_lines`, `src/pages/Inventory.jsx`, `src/hooks/useInventory.js` |
 
 ---
 
@@ -166,11 +166,14 @@ Build a proper double-entry accounting engine that automatically creates journal
 
 ### Transaction Tables
 - `invoices` - Sales invoices
-- `invoice_items` - Invoice line items
+- `invoice_items` - Invoice line items (product_id)
 - `supplier_invoices` - Purchase invoices
-- `supplier_invoice_items` - Purchase line items
+- `supplier_invoice_items` - Purchase line items (product_id)
 - `quotations` - Sales quotations
-- `quotation_items` - Quotation line items
+- `quotation_items` - Quotation line items (product_id)
+- `products` - Products/Services catalog
+- `inventory_movements` - Stock in/out ledger
+- `stock_adjustments` / `stock_adjustment_lines` - Stock take
 
 ### Accounting Tables
 - `journal_entries` - Journal entry headers
@@ -196,19 +199,18 @@ Build a proper double-entry accounting engine that automatically creates journal
 | Phase 2: UX & Onboarding | ✅ Complete | 100% |
 | Phase 3: Advanced Reporting | ✅ Complete | 100% |
 | Phase 4: Bank Reconciliation | ✅ Complete | 100% |
-| Phase 5: Inventory Management | 🔲 Not Started | 0% |
+| Phase 5: Inventory Management | ✅ Complete | 100% |
 | Phase 6: Multi-Currency | 🔲 Not Started | 0% |
 | Phase 7: Advanced Features | 🔲 Not Started | 0% |
 | Phase 8: Payroll | 🔲 Not Started | 0% |
 
-**Overall Progress: ~45%**
+**Overall Progress: ~55%**
 
 ---
 
 ## Next Recommended Steps
 
-1. **Phase 5: Inventory Management** - Products catalog, stock tracking, COGS calculation
-2. **Credit Notes** - Common business requirement
+1. **Credit Notes** - Common business requirement
 3. **Data Export** - PDF export for all reports (Excel export implemented for all Phase 3 & 4 reports)
 
 ---

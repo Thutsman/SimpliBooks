@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Trash2, Save, Printer, UserPlus } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
 import { useClients } from '../hooks/useClients'
 import { useAccounts } from '../hooks/useAccounts'
+import { useProducts } from '../hooks/useProducts'
 import { useCompany } from '../context/CompanyContext'
 import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
@@ -23,6 +24,7 @@ const InvoiceDetail = () => {
   const { activeCompany } = useCompany()
   const { clients, createClient, isCreating: isCreatingClient } = useClients()
   const { accounts } = useAccounts()
+  const { products, isLoading: productsLoading, refetchProducts } = useProducts()
 
   // Quick Add Client modal state
   const [showAddClientModal, setShowAddClientModal] = useState(false)
@@ -58,8 +60,9 @@ const InvoiceDetail = () => {
   const defaultVatRate = getDefaultVATRate(activeCompany?.country)
 
   const [items, setItems] = useState([
-    { description: '', quantity: 1, unit_price: 0, vat_rate: defaultVatRate, account_id: '' },
+    { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: defaultVatRate, account_id: '' },
   ])
+  const itemsLocked = !isNew && formData.status !== 'draft'
 
   // Load invoice data
   useEffect(() => {
@@ -85,6 +88,7 @@ const InvoiceDetail = () => {
       if (invoiceData.items && invoiceData.items.length > 0) {
         setItems(
           invoiceData.items.map((item) => ({
+            product_id: item.product_id || '',
             description: item.description || '',
             quantity: item.quantity || 1,
             unit_price: Number(item.unit_price) || 0,
@@ -95,6 +99,11 @@ const InvoiceDetail = () => {
       }
     }
   }, [isNew, invoiceData, activeCompany?.id])
+
+  // Refetch products when opening New Invoice so the dropdown has the latest list
+  useEffect(() => {
+    if (isNew) refetchProducts()
+  }, [isNew, refetchProducts])
 
   // Calculate totals
   const calculateLineTotal = (item) => {
@@ -118,8 +127,26 @@ const InvoiceDetail = () => {
   const handleAddItem = () => {
     setItems([
       ...items,
-      { description: '', quantity: 1, unit_price: 0, vat_rate: defaultVatRate, account_id: '' },
+      { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: defaultVatRate, account_id: '' },
     ])
+  }
+
+  const handleSelectProduct = (index, productId) => {
+    if (!productId) {
+      handleItemChange(index, 'product_id', '')
+      return
+    }
+    const product = products.find((p) => p.id === productId)
+    if (!product) return
+    const newItems = [...items]
+    newItems[index] = {
+      ...newItems[index],
+      product_id: product.id,
+      description: product.name || newItems[index].description,
+      unit_price: Number(product.sales_price) || 0,
+      vat_rate: Number(product.vat_rate_default) ?? defaultVatRate,
+    }
+    setItems(newItems)
   }
 
   const handleRemoveItem = (index) => {
@@ -176,6 +203,7 @@ const InvoiceDetail = () => {
       .map((item) => {
         const { subtotal, vat } = calculateLineTotal(item)
         return {
+          product_id: item.product_id || null,
           description: item.description,
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
@@ -214,6 +242,7 @@ const InvoiceDetail = () => {
     value: a.id,
     label: `${a.code} - ${a.name}`,
   }))
+  const productOptions = products.map((p) => ({ value: p.id, label: p.sku ? `${p.name} (${p.sku})` : p.name }))
 
   if (!isNew && invoiceLoading) {
     return (
@@ -336,7 +365,12 @@ const InvoiceDetail = () => {
 
           {/* Line Items */}
           <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Line Items</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Line Items</h2>
+              {itemsLocked && (
+                <span className="text-sm text-amber-600 font-medium">Line items locked (invoice already sent)</span>
+              )}
+            </div>
 
             <div className="space-y-4">
               {items.map((item, index) => (
@@ -344,6 +378,16 @@ const InvoiceDetail = () => {
                   key={index}
                   className="grid grid-cols-12 gap-3 items-start p-4 bg-gray-50 rounded-lg"
                 >
+                  <div className="col-span-12 sm:col-span-3">
+                    <Select
+                      label="Product"
+                      placeholder={productsLoading ? 'Loading products...' : 'Select product...'}
+                      value={item.product_id || ''}
+                      onChange={(e) => handleSelectProduct(index, e.target.value)}
+                      options={productOptions}
+                      disabled={itemsLocked || productsLoading}
+                    />
+                  </div>
                   <div className="col-span-12 sm:col-span-5">
                     <Input
                       placeholder="Description"
@@ -351,9 +395,10 @@ const InvoiceDetail = () => {
                       onChange={(e) =>
                         handleItemChange(index, 'description', e.target.value)
                       }
+                      disabled={itemsLocked}
                     />
                   </div>
-                  <div className="col-span-4 sm:col-span-2">
+                  <div className="col-span-4 sm:col-span-1">
                     <Input
                       type="number"
                       placeholder="Qty"
@@ -363,6 +408,7 @@ const InvoiceDetail = () => {
                       }
                       min="0"
                       step="0.01"
+                      disabled={itemsLocked}
                     />
                   </div>
                   <div className="col-span-4 sm:col-span-2">
@@ -375,23 +421,25 @@ const InvoiceDetail = () => {
                       }
                       min="0"
                       step="0.01"
+                      disabled={itemsLocked}
                     />
                   </div>
-                  <div className="col-span-3 sm:col-span-2">
+                  <div className="col-span-3 sm:col-span-1">
                     <VATRateInlineSelect
                       value={item.vat_rate}
                       onChange={(value) =>
                         handleItemChange(index, 'vat_rate', value)
                       }
                       country={activeCompany?.country}
+                      disabled={itemsLocked}
                     />
                   </div>
                   <div className="col-span-1 flex items-center justify-end">
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                      disabled={items.length === 1}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-50 disabled:pointer-events-none"
+                      disabled={items.length === 1 || itemsLocked}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -403,15 +451,17 @@ const InvoiceDetail = () => {
               ))}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleAddItem}
-              className="w-full"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Line Item
-            </Button>
+            {!itemsLocked && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddItem}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Line Item
+              </Button>
+            )}
           </div>
 
           {/* Notes & Terms */}

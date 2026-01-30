@@ -46,20 +46,36 @@ export const CompanyProvider = ({ children }) => {
 
   // Set active company when companies load
   useEffect(() => {
-    if (companies.length > 0 && !activeCompanyId) {
-      const storedId = localStorage.getItem('activeCompanyId')
-      const validCompany = companies.find(c => c.id === storedId)
-      if (validCompany) {
-        setActiveCompanyId(validCompany.id)
-      } else {
-        setActiveCompanyId(companies[0].id)
-        localStorage.setItem('activeCompanyId', companies[0].id)
+    if (companies.length > 0) {
+      // Check if current activeCompanyId is valid
+      const currentCompany = companies.find(c => c.id === activeCompanyId)
+      
+      if (!currentCompany) {
+        // Current ID is invalid, set a valid one
+        const storedId = localStorage.getItem('activeCompanyId')
+        const validCompany = companies.find(c => c.id === storedId)
+        
+        if (validCompany) {
+          setActiveCompanyId(validCompany.id)
+        } else {
+          setActiveCompanyId(companies[0].id)
+          localStorage.setItem('activeCompanyId', companies[0].id)
+        }
       }
+    } else if (companies.length === 0 && !companiesLoading && user && activeCompanyId) {
+      // No companies exist and we're not loading - clear invalid activeCompanyId
+      setActiveCompanyId(null)
+      localStorage.removeItem('activeCompanyId')
     }
-  }, [companies, activeCompanyId])
+    // NOTE: activeCompanyId is intentionally NOT in dependencies to avoid infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companies, companiesLoading, user])
 
   // Get active company object
   const activeCompany = companies.find(c => c.id === activeCompanyId) || null
+  
+  // Determine if the context is ready (not stuck loading)
+  const isReady = !companiesLoading && (companies.length === 0 || activeCompany !== null)
 
   // Switch company
   const switchCompany = (companyId) => {
@@ -72,6 +88,7 @@ export const CompanyProvider = ({ children }) => {
     queryClient.invalidateQueries({ queryKey: ['purchases'] })
     queryClient.invalidateQueries({ queryKey: ['accounts'] })
     queryClient.invalidateQueries({ queryKey: ['banking'] })
+    queryClient.invalidateQueries({ queryKey: ['products'] })
   }
 
   // Create company mutation
@@ -167,6 +184,7 @@ export const CompanyProvider = ({ children }) => {
     companiesError,
     activeCompany,
     activeCompanyId,
+    isReady,
     switchCompany,
     createCompany: createCompanyMutation.mutateAsync,
     updateCompany: updateCompanyMutation.mutateAsync,

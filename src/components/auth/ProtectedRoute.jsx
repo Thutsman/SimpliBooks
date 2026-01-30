@@ -8,7 +8,8 @@ const ProtectedRoute = ({ children, skipOnboardingCheck = false }) => {
   const { needsOnboarding, isLoading: onboardingLoading } = useOnboarding()
   const location = useLocation()
 
-  if (loading || onboardingLoading) {
+  // Wait for auth to finish loading first
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -19,8 +20,21 @@ const ProtectedRoute = ({ children, skipOnboardingCheck = false }) => {
     )
   }
 
+  // Auth loaded but no user — redirect to login
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // Wait for onboarding check (only after we know user exists)
+  if (onboardingLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-accent-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   // Redirect to onboarding if needed (unless we're already on onboarding or skipping check)

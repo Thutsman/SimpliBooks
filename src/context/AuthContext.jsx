@@ -9,42 +9,57 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
+    // getSession() is required to initialize the Supabase client's internal
+    // session state so that authenticated database queries work properly.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Listen for auth changes
+    // Listen for auth changes (sign in, sign out, token refresh).
+    // IMPORTANT: This callback must NOT be async and must NOT make Supabase
+    // database queries — doing so can deadlock the client's internal auth lock.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
-
-        // Create profile on sign up
-        if (event === 'SIGNED_IN' && session?.user) {
-          const { data: existingProfile } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', session.user.id)
-            .single()
-
-          if (!existingProfile) {
-            await supabase.from('profiles').insert({
-              id: session.user.id,
-              email: session.user.email,
-              full_name: session.user.user_metadata?.full_name || '',
-            })
-          }
-        }
       }
     )
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Handle profile creation separately — outside the auth state change callback
+  // to avoid deadlocking the Supabase client's auth lock.
+  useEffect(() => {
+    if (!user) return
+
+    const ensureProfile = async () => {
+      try {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single()
+
+        if (!existingProfile) {
+          await supabase.from('profiles').insert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || '',
+          })
+        }
+      } catch (err) {
+        // Non-critical — don't block auth flow
+        console.warn('Profile check/create failed:', err)
+      }
+    }
+
+    ensureProfile()
+  }, [user?.id]) // Only run when user ID changes (login/signup), not on every reference change
 
   const value = {
     user,
