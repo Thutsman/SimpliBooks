@@ -27,12 +27,6 @@ const QuotationDetail = () => {
   const { activeCompany } = useCompany()
   const baseCurrency = activeCompany?.currency || 'ZAR'
   const { enabledCurrencies } = useCompanyCurrencies()
-  const { data: suggestedRate } = useExchangeRateForDate(
-    (formData.currency_code || baseCurrency) !== baseCurrency ? (formData.currency_code || baseCurrency) : null,
-    formData.issue_date
-  )
-  const documentCurrency = formData.currency_code || baseCurrency
-  const isForeignCurrency = documentCurrency !== baseCurrency
   const { clients } = useClients()
   const { accounts } = useAccounts()
   const {
@@ -64,6 +58,13 @@ const QuotationDetail = () => {
     fx_rate: 1,
     fx_rate_date: '',
   })
+
+  const documentCurrency = formData.currency_code || baseCurrency
+  const isForeignCurrency = documentCurrency !== baseCurrency
+  const { data: suggestedRate } = useExchangeRateForDate(
+    isForeignCurrency ? documentCurrency : null,
+    formData.issue_date
+  )
 
   // Get default VAT rate based on company country
   const defaultVatRate = getDefaultVATRate(activeCompany?.country)

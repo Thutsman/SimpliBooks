@@ -27,12 +27,6 @@ const PurchaseDetail = () => {
   const { activeCompany } = useCompany()
   const baseCurrency = activeCompany?.currency || 'ZAR'
   const { enabledCurrencies } = useCompanyCurrencies()
-  const { data: suggestedRate } = useExchangeRateForDate(
-    (formData.currency_code || baseCurrency) !== baseCurrency ? (formData.currency_code || baseCurrency) : null,
-    formData.issue_date
-  )
-  const documentCurrency = formData.currency_code || baseCurrency
-  const isForeignCurrency = documentCurrency !== baseCurrency
   const { suppliers, createSupplier, isCreating: isCreatingSupplier } = useSuppliers()
   const { accounts } = useAccounts()
   const { products, isLoading: productsLoading, refetchProducts } = useProducts()
@@ -67,6 +61,13 @@ const PurchaseDetail = () => {
     fx_rate: 1,
     fx_rate_date: '',
   })
+
+  const documentCurrency = formData.currency_code || baseCurrency
+  const isForeignCurrency = documentCurrency !== baseCurrency
+  const { data: suggestedRate } = useExchangeRateForDate(
+    isForeignCurrency ? documentCurrency : null,
+    formData.issue_date
+  )
 
   const [items, setItems] = useState([
     { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15, account_id: '' },
