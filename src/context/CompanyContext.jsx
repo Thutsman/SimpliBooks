@@ -24,10 +24,10 @@ export const CompanyProvider = ({ children }) => {
 
       console.log('Fetching companies for user:', user.id)
 
+      // RLS restricts to companies where user is owner or active member
       const { data, error } = await supabase
         .from('companies')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: true })
 
       if (error) {
@@ -129,6 +129,29 @@ export const CompanyProvider = ({ children }) => {
         .insert(vatRates)
 
       if (vatError) throw vatError
+
+      // Seed company_currencies with base currency (Phase 6 multi-currency)
+      const { error: ccError } = await supabase
+        .from('company_currencies')
+        .insert({
+          company_id: company.id,
+          currency_code: company.currency || 'ZAR',
+          is_enabled: true,
+        })
+
+      if (ccError) throw ccError
+
+      // Add owner to company_members (RBAC)
+      const { error: memberError } = await supabase
+        .from('company_members')
+        .insert({
+          company_id: company.id,
+          user_id: user.id,
+          role: 'owner',
+          status: 'active',
+        })
+
+      if (memberError) throw memberError
 
       return company
     },

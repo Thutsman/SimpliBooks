@@ -1,12 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useCompany } from '../../context/CompanyContext'
+import { useAuth } from '../../context/AuthContext'
+import { useAcceptPendingInvitations } from '../../hooks/useCompanyInvitations'
 import Sidebar from './Sidebar'
 import Header from './Header'
 
 const DashboardLayout = () => {
   const { isReady, companiesLoading, companiesError, companies } = useCompany()
+  const { user } = useAuth()
+  const acceptPending = useAcceptPendingInvitations()
+  const acceptedRef = useRef(false)
+
+  useEffect(() => {
+    if (!user?.id || acceptedRef.current) return
+    acceptedRef.current = true
+    acceptPending.mutateAsync().then(({ accepted }) => {
+      if (accepted > 0) acceptedRef.current = false
+    }).catch(() => { acceptedRef.current = false })
+  }, [user?.id])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const stored = localStorage.getItem('sidebarCollapsed')
     return stored === 'true'

@@ -24,6 +24,7 @@ import Banking from './pages/Banking'
 import Products from './pages/Products'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
+import ActivityLog from './pages/ActivityLog'
 import Settings from './pages/Settings'
 
 function App() {
@@ -76,6 +77,7 @@ function App() {
             <Route path="products" element={<Products />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="activity" element={<ActivityLog />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

@@ -15,6 +15,7 @@ import {
   X,
   Package,
   Warehouse,
+  History,
 } from 'lucide-react'
 
 const navItems = [
@@ -29,6 +30,7 @@ const navItems = [
   { name: 'Accounts', href: '/dashboard/accounts', icon: CreditCard },
   { name: 'Banking', href: '/dashboard/banking', icon: Landmark },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
+  { name: 'Activity Log', href: '/dashboard/activity', icon: History },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 

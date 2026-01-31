@@ -8,9 +8,11 @@ import { ConfirmModal } from '../components/ui/Modal'
 import DataTable from '../components/dashboard/DataTable'
 import { formatCurrency, formatDate, getStatusColor, INVOICE_STATUSES } from '../lib/constants'
 import { useCompany } from '../context/CompanyContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const Invoices = () => {
   const { activeCompany } = useCompany()
+  const { canEditTransactions } = usePermissions()
   const [statusFilter, setStatusFilter] = useState('all')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
@@ -159,12 +161,14 @@ const Invoices = () => {
           <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
           <p className="text-gray-600">Create and manage customer invoices</p>
         </div>
-        <Link to="/dashboard/invoices/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            New Invoice
-          </Button>
-        </Link>
+        {canEditTransactions && (
+          <Link to="/dashboard/invoices/new" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              New Invoice
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Status Tabs */}

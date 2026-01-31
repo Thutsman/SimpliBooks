@@ -253,7 +253,7 @@ export const useQuotations = (filters = {}) => {
         invoiceNumber = `INV-${String(nextNum).padStart(4, '0')}`
       }
 
-      // Create invoice
+      // Create invoice (include currency/FX from quotation)
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -269,13 +269,19 @@ export const useQuotations = (filters = {}) => {
           total: quotation.total,
           notes: quotation.notes,
           terms: quotation.terms,
+          currency_code: quotation.currency_code || undefined,
+          fx_rate: quotation.fx_rate ?? 1,
+          fx_rate_date: quotation.fx_rate_date || undefined,
+          subtotal_fx: quotation.subtotal_fx ?? quotation.subtotal,
+          vat_amount_fx: quotation.vat_amount_fx ?? quotation.vat_amount,
+          total_fx: quotation.total_fx ?? quotation.total,
         })
         .select()
         .single()
 
       if (invoiceError) throw invoiceError
 
-      // Create invoice items
+      // Create invoice items (include FX columns from quotation items)
       if (quotationItems.length > 0) {
         const invoiceItems = quotationItems.map((item, index) => ({
           invoice_id: invoice.id,
@@ -287,6 +293,9 @@ export const useQuotations = (filters = {}) => {
           vat_amount: item.vat_amount,
           line_total: item.line_total,
           sort_order: index,
+          unit_price_fx: item.unit_price_fx ?? item.unit_price,
+          vat_amount_fx: item.vat_amount_fx ?? item.vat_amount,
+          line_total_fx: item.line_total_fx ?? item.line_total,
         }))
 
         const { error: invoiceItemsError } = await supabase

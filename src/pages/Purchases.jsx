@@ -8,9 +8,11 @@ import { ConfirmModal } from '../components/ui/Modal'
 import DataTable from '../components/dashboard/DataTable'
 import { formatCurrency, formatDate, getStatusColor, PURCHASE_STATUSES } from '../lib/constants'
 import { useCompany } from '../context/CompanyContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const Purchases = () => {
   const { activeCompany } = useCompany()
+  const { canEditTransactions } = usePermissions()
   const [statusFilter, setStatusFilter] = useState('all')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedPurchase, setSelectedPurchase] = useState(null)
@@ -148,12 +150,14 @@ const Purchases = () => {
           <h1 className="text-2xl font-bold text-gray-900">Purchases</h1>
           <p className="text-gray-600">Track supplier invoices and expenses</p>
         </div>
-        <Link to="/dashboard/purchases/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            New Purchase
-          </Button>
-        </Link>
+        {canEditTransactions && (
+          <Link to="/dashboard/purchases/new" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              New Purchase
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="flex gap-2 border-b border-gray-200 overflow-x-auto">

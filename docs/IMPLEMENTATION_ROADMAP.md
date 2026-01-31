@@ -107,29 +107,47 @@ Build a proper double-entry accounting engine that automatically creates journal
 
 ---
 
-## Phase 6: Multi-Currency Support 🔲 NOT STARTED
+## Phase 6: Multi-Currency Support ✅ COMPLETED
 
-### To Be Implemented
+### Implemented Features
 
-| Feature | Status | Priority |
-|---------|--------|----------|
-| Multiple Currency Setup | ❌ Not Started | Medium |
-| Exchange Rate Management | ❌ Not Started | Medium |
-| Foreign Currency Invoices | ❌ Not Started | Medium |
-| Forex Gain/Loss Calculation | ❌ Not Started | Low |
-| Currency Revaluation | ❌ Not Started | Low |
+| Feature | Status | File / Migration |
+|---------|--------|------------------|
+| Multiple Currency Setup | ✅ Done | `013_multi_currency.sql` (currencies, company_currencies), Settings > Currencies |
+| Exchange Rate Management | ✅ Done | `013_multi_currency.sql` (exchange_rates), `useExchangeRates.js`, Settings > Exchange Rates |
+| Foreign Currency Invoices | ✅ Done | InvoiceDetail, PurchaseDetail, QuotationDetail + hooks; base ledger, FX columns on documents |
+| Forex Gain/Loss Calculation | 🔲 Not Started | Low |
+| Currency Revaluation | 🔲 Not Started | Low |
+
+### Manual test checklist (Phase 6)
+
+1. **Settings > Currencies**: Enable an extra currency (e.g. USD); remove it; confirm base currency cannot be removed.
+2. **Settings > Exchange Rates**: Add a rate (e.g. 1 USD = 0.055 ZAR), effective date; delete a rate.
+3. **Settings > Financial**: With no invoices/purchases/quotations, change base currency; after creating one document, confirm base currency is locked.
+4. **Invoice (base currency)**: Create invoice in base currency; confirm totals and line totals display and save; confirm journal/reports use base amounts.
+5. **Invoice (foreign currency)**: Select USD, enter FX rate; add line items in USD; save; confirm totals show in USD and “≈ X ZAR”; confirm report amounts in base.
+6. **Purchase / Quotation**: Same as invoice for base and foreign currency.
+7. **Quotation > Convert to Invoice**: Convert a foreign-currency quotation; confirm new invoice has same currency and FX and amounts.
 
 ---
 
-## Phase 7: Advanced Features 🔲 NOT STARTED
+## Phase 7: Advanced Features ✅ PARTIALLY COMPLETED
+
+### Implemented Features
+
+| Feature | Status | Migration/File |
+|---------|--------|----------------|
+| User Roles & Permissions (RBAC) | ✅ Done | `014_rbac_and_audit.sql`, `usePermissions.js`, `useCompanyMembers.js` |
+| Company Members (Owner/Admin/Accountant/Viewer) | ✅ Done | `014_rbac_and_audit.sql`, RLS on all company-scoped tables |
+| Team Invitations (Email Invite) | ✅ Done | `015_company_invitations.sql`, `supabase/functions/invite-user`, `useCompanyInvitations.js`, Settings > Team Members |
+| Audit Trail / Activity Log | ✅ Done | `014_rbac_and_audit.sql` (activity_log + triggers), `useActivityLog.js`, `src/pages/ActivityLog.jsx` |
+| Data Export (PDF/Excel for Documents) | ✅ Done | `DocumentPrintView.jsx`, `exportToPDF`/`exportToExcel` on Invoice, Quotation, Purchase detail pages |
+| Reports Excel/PDF Export | ✅ Done (existing) | `src/pages/Reports.jsx`, `src/lib/utils.js` |
 
 ### To Be Implemented
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| User Roles & Permissions | ❌ Not Started | High |
-| Audit Trail/Activity Log | ❌ Not Started | High |
-| Data Export (Excel/PDF) | ❌ Not Started | High |
 | Data Import (Migration) | ❌ Not Started | Medium |
 | Recurring Invoices | ❌ Not Started | Medium |
 | Payment Reminders | ❌ Not Started | Medium |
@@ -159,10 +177,16 @@ Build a proper double-entry accounting engine that automatically creates journal
 ### Core Tables
 - `companies` - Business entities
 - `profiles` - User profiles with onboarding status
+- `company_members` - RBAC: user–company link with role (owner/admin/accountant/viewer)
+- `company_invitations` - Pending email invites; accept_invitation RPC
+- `activity_log` - Audit trail (triggers on key tables)
 - `clients` - Customer records
 - `suppliers` - Vendor records
 - `accounts` - Chart of accounts
 - `vat_rates` - VAT/Tax rates by country
+- `currencies` - Reference (ISO 4217 codes, locale)
+- `company_currencies` - Enabled currencies per company
+- `exchange_rates` - Manual rates (company, base/quote, rate, effective_date)
 
 ### Transaction Tables
 - `invoices` - Sales invoices
@@ -200,45 +224,62 @@ Build a proper double-entry accounting engine that automatically creates journal
 | Phase 3: Advanced Reporting | ✅ Complete | 100% |
 | Phase 4: Bank Reconciliation | ✅ Complete | 100% |
 | Phase 5: Inventory Management | ✅ Complete | 100% |
-| Phase 6: Multi-Currency | 🔲 Not Started | 0% |
-| Phase 7: Advanced Features | 🔲 Not Started | 0% |
+| Phase 6: Multi-Currency | ✅ Complete | 100% (Forex gain/loss & revaluation deferred) |
+| Phase 7: Advanced Features | ✅ Partial | RBAC, Invitations, Audit Log, Document Export done |
 | Phase 8: Payroll | 🔲 Not Started | 0% |
 
-**Overall Progress: ~55%**
+**Overall Progress: ~75%**
 
 ---
 
 ## Next Recommended Steps
 
 1. **Credit Notes** - Common business requirement
-3. **Data Export** - PDF export for all reports (Excel export implemented for all Phase 3 & 4 reports)
+2. **Debit Notes** - Supplier credit adjustments
+3. **Recurring Invoices** - Automation for repeat billing
+4. **Deploy Edge Function** - Run `supabase link` then `supabase functions deploy invite-user` for email invites
 
 ---
 
-## Files Modified in Phase 1 & 2
+## Files Modified (Phases 1–7)
 
 ### Migrations
+- `014_rbac_and_audit.sql` - company_members, RBAC helper functions, RLS replacement, activity_log table + triggers
+- `015_company_invitations.sql` - company_invitations table, accept_invitation RPC
+- `013_multi_currency.sql` - Currencies, company_currencies, exchange_rates; FX columns + backfill
 - `005_quotations_and_onboarding.sql` - Quotations + onboarding fields
 - `006_journal_entries.sql` - Journal entries schema
 - `007_invoice_auto_posting.sql` - Invoice triggers
 - `008_purchase_auto_posting.sql` - Purchase triggers
 - `009_bank_matching_rules.sql` - Bank matching rules schema
-- `010_reconciliation_history.sql` - Reconciliation history/audit trail
+- `010_reconciliation_history.sql` - Reconciliation history
+
+### Edge Functions
+- `supabase/functions/invite-user/index.ts` - Email invite via Auth Admin; validates Owner/Admin, creates invitation, sends invite
+- `supabase/functions/_shared/cors.ts` - CORS headers for Edge Functions
 
 ### Frontend
+- `src/context/CompanyContext.jsx` - Fetch companies by membership; create company inserts owner into company_members
+- `src/hooks/usePermissions.js` - Role-based capability flags (canEditTransactions, canManageMembers, etc.)
+- `src/hooks/useCompanyMembers.js` - List, add, update role, remove members
+- `src/hooks/useCompanyInvitations.js` - List invitations, inviteByEmailViaEdge, cancel, useAcceptPendingInvitations
+- `src/hooks/useActivityLog.js` - Query/filter activity_log
+- `src/pages/Settings.jsx` - Team Members (invite by email, pending list, add existing user), permission-gated fields
+- `src/pages/ActivityLog.jsx` - Activity log page with entity/action filters
+- `src/pages/InvoiceDetail.jsx`, `QuotationDetail.jsx`, `PurchaseDetail.jsx` - PDF/Excel export, DocumentPrintView
+- `src/components/documents/DocumentPrintView.jsx` - Reusable print/PDF layout for invoice, quotation, purchase
+- `src/components/dashboard/DashboardLayout.jsx` - Accept pending invitations on load
+- `src/components/dashboard/Sidebar.jsx` - Activity Log nav link
 - `src/pages/Onboarding.jsx` - Onboarding wizard
 - `src/hooks/useOnboarding.js` - Onboarding state hook
-- `src/hooks/useReports.js` - Financial reports hooks (Trial Balance, GL, Income Statement, Balance Sheet, VAT, VAT 201, AR/AP Aging, Cash Flow, P&L by Period, Customer/Supplier Statement, Unreconciled Items)
-- `src/hooks/useBanking.js` - Banking hooks (import, categorize, match, auto-match, reconciliation history)
-- `src/hooks/useClients.js` - Client CRUD with validation
-- `src/hooks/useSuppliers.js` - Supplier CRUD with validation
-- `src/pages/Reports.jsx` - Reports UI (all Phase 3 & 4 report tabs and Excel export)
-- `src/pages/Banking.jsx` - Banking UI (CSV import, manual matching, auto-match, reconciliation history)
-- `src/pages/InvoiceDetail.jsx` - Quick Add Client feature
-- `src/pages/PurchaseDetail.jsx` - Quick Add Supplier feature
+- `src/hooks/useReports.js` - Financial reports (Trial Balance, GL, Income Statement, Balance Sheet, VAT, AR/AP Aging, Cash Flow, etc.)
+- `src/hooks/useBanking.js` - Banking hooks (import, match, reconciliation history)
+- `src/hooks/useClients.js`, `src/hooks/useSuppliers.js` - CRUD with validation
+- `src/pages/Reports.jsx` - Reports UI and Excel/PDF export
+- `src/pages/Banking.jsx` - Banking UI
 - `src/components/auth/ProtectedRoute.jsx` - Onboarding redirect
 - `src/lib/constants.js` - VAT rates, account codes
 
 ---
 
-*Last Updated: January 29, 2026*
+*Last Updated: January 31, 2026*

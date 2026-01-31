@@ -160,13 +160,46 @@ export const PURCHASE_STATUSES = [
   { value: 'cancelled', label: 'Cancelled', color: 'gray' },
 ]
 
-// Currency Formatter
+// Locale per currency for correct symbol/formatting (ISO 4217 codes)
+const CURRENCY_LOCALE = {
+  ZAR: 'en-ZA',
+  USD: 'en-US',
+  BWP: 'en-BW',
+  EUR: 'de-DE',
+  GBP: 'en-GB',
+  ZWL: 'en-ZW',
+  NAD: 'en-NA',
+  SZL: 'en-SZ',
+  LSL: 'en-LS',
+  MZN: 'en-MZ',
+  AUD: 'en-AU',
+  CHF: 'de-CH',
+}
+
+// Currency Formatter: uses locale per currency so USD shows $ and ZAR shows R correctly
 export const formatCurrency = (amount, currency = 'ZAR') => {
-  return new Intl.NumberFormat('en-ZA', {
+  const locale = CURRENCY_LOCALE[currency] || 'en-ZA'
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency,
+    currency: currency || 'ZAR',
   }).format(amount || 0)
 }
+
+// Broad currency list for selects (matches DB currencies table; used when DB not loaded or as fallback)
+export const CURRENCY_OPTIONS = [
+  { value: 'ZAR', label: 'ZAR - South African Rand' },
+  { value: 'USD', label: 'USD - US Dollar' },
+  { value: 'BWP', label: 'BWP - Botswana Pula' },
+  { value: 'EUR', label: 'EUR - Euro' },
+  { value: 'GBP', label: 'GBP - British Pound' },
+  { value: 'ZWL', label: 'ZWL - Zimbabwe Dollar' },
+  { value: 'NAD', label: 'NAD - Namibian Dollar' },
+  { value: 'SZL', label: 'SZL - Swazi Lilangeni' },
+  { value: 'LSL', label: 'LSL - Lesotho Loti' },
+  { value: 'MZN', label: 'MZN - Mozambican Metical' },
+  { value: 'AUD', label: 'AUD - Australian Dollar' },
+  { value: 'CHF', label: 'CHF - Swiss Franc' },
+]
 
 // Date Formatter
 export const formatDate = (date) => {

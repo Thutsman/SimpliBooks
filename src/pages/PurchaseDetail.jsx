@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Save, UserPlus } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, UserPlus, Printer, FileDown, FileSpreadsheet } from 'lucide-react'
 import { usePurchases } from '../hooks/usePurchases'
 import { useSuppliers } from '../hooks/useSuppliers'
 import { useAccounts } from '../hooks/useAccounts'
 import { useProducts } from '../hooks/useProducts'
 import { useCompany } from '../context/CompanyContext'
+import { useCompanyCurrencies } from '../hooks/useCompanyCurrencies'
+import { useExchangeRateForDate } from '../hooks/useExchangeRates'
 import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Select, Textarea } from '../components/ui/Input'
 import Modal from '../components/ui/Modal'
 import { formatCurrency } from '../lib/constants'
+import DocumentPrintView from '../components/documents/DocumentPrintView'
+import { exportToPDF, exportToExcel } from '../lib/utils'
 import { format, addDays } from 'date-fns'
 
 const PurchaseDetail = () => {
@@ -21,6 +25,14 @@ const PurchaseDetail = () => {
   const isNew = !id || id === 'new'
 
   const { activeCompany } = useCompany()
+  const baseCurrency = activeCompany?.currency || 'ZAR'
+  const { enabledCurrencies } = useCompanyCurrencies()
+  const { data: suggestedRate } = useExchangeRateForDate(
+    (formData.currency_code || baseCurrency) !== baseCurrency ? (formData.currency_code || baseCurrency) : null,
+    formData.issue_date
+  )
+  const documentCurrency = formData.currency_code || baseCurrency
+  const isForeignCurrency = documentCurrency !== baseCurrency
   const { suppliers, createSupplier, isCreating: isCreatingSupplier } = useSuppliers()
   const { accounts } = useAccounts()
   const { products, isLoading: productsLoading, refetchProducts } = useProducts()
@@ -51,6 +63,9 @@ const PurchaseDetail = () => {
     due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
     status: 'unpaid',
     notes: '',
+    currency_code: '',
+    fx_rate: 1,
+    fx_rate_date: '',
   })
 
   const [items, setItems] = useState([
@@ -58,13 +73,32 @@ const PurchaseDetail = () => {
   ])
   const itemsLocked = !isNew
 
+  useEffect(() => {
+    if (isForeignCurrency && suggestedRate?.rate && formData.fx_rate === 1) {
+      setFormData((prev) => ({ ...prev, fx_rate: suggestedRate.rate }))
+    }
+  }, [suggestedRate?.rate, isForeignCurrency])
+
   // Refetch products when opening New Purchase so the dropdown has the latest list (e.g. after creating a product)
   useEffect(() => {
     if (isNew) refetchProducts()
   }, [isNew, refetchProducts])
 
   useEffect(() => {
+    if (isNew && activeCompany && (!formData.currency_code || formData.currency_code === '')) {
+      setFormData((prev) => ({
+        ...prev,
+        currency_code: baseCurrency,
+        fx_rate: 1,
+        fx_rate_date: format(new Date(), 'yyyy-MM-dd'),
+      }))
+    }
+  }, [isNew, activeCompany, baseCurrency])
+
+  useEffect(() => {
     if (purchaseData) {
+      const docCur = purchaseData.currency_code || baseCurrency
+      const useFx = docCur !== baseCurrency
       setFormData({
         invoice_number: purchaseData.invoice_number || '',
         supplier_id: purchaseData.supplier_id || '',
@@ -73,6 +107,9 @@ const PurchaseDetail = () => {
         due_date: purchaseData.due_date || format(addDays(new Date(), 30), 'yyyy-MM-dd'),
         status: purchaseData.status || 'unpaid',
         notes: purchaseData.notes || '',
+        currency_code: docCur,
+        fx_rate: Number(purchaseData.fx_rate) || 1,
+        fx_rate_date: purchaseData.fx_rate_date || purchaseData.issue_date || '',
       })
       if (purchaseData.items && purchaseData.items.length > 0) {
         setItems(
@@ -80,14 +117,14 @@ const PurchaseDetail = () => {
             product_id: item.product_id || '',
             description: item.description || '',
             quantity: item.quantity || 1,
-            unit_price: Number(item.unit_price) || 0,
+            unit_price: Number(useFx && item.unit_price_fx != null ? item.unit_price_fx : item.unit_price) || 0,
             vat_rate: Number(item.vat_rate) || 15,
             account_id: item.account_id || '',
           }))
         )
       }
     }
-  }, [purchaseData])
+  }, [purchaseData, baseCurrency])
 
   const calculateLineTotal = (item) => {
     const subtotal = Number(item.quantity) * Number(item.unit_price)
@@ -172,33 +209,64 @@ const PurchaseDetail = () => {
       toast.error('Please enter an invoice number')
       return
     }
-
     if (items.every((item) => !item.description)) {
       toast.error('Please add at least one line item')
       return
     }
+    const fxRate = Number(formData.fx_rate) || 1
+    if (fxRate <= 0) {
+      toast.error('Exchange rate must be greater than 0')
+      return
+    }
+    const allowedCodes = enabledCurrencies.length ? enabledCurrencies.map((ec) => ec.currency_code) : [baseCurrency]
+    if (!allowedCodes.includes(documentCurrency)) {
+      toast.error('Selected currency is not enabled for this company. Enable it in Settings > Currencies.')
+      return
+    }
+
+    const isForeign = documentCurrency !== baseCurrency
+    const subtotalDoc = totals.subtotal
+    const vatDoc = totals.vat
+    const totalDoc = totals.total
 
     const preparedItems = items
       .filter((item) => item.description)
       .map((item) => {
         const { subtotal, vat } = calculateLineTotal(item)
+        const lineTotalDoc = subtotal + vat
+        const unitPriceBase = isForeign ? Number(item.unit_price) * fxRate : Number(item.unit_price)
+        const vatBase = isForeign ? vat * fxRate : vat
+        const lineTotalBase = isForeign ? lineTotalDoc * fxRate : lineTotalDoc
         return {
           product_id: item.product_id || null,
           description: item.description,
           quantity: Number(item.quantity),
-          unit_price: Number(item.unit_price),
+          unit_price: unitPriceBase,
           vat_rate: Number(item.vat_rate),
-          vat_amount: vat,
-          line_total: subtotal + vat,
+          vat_amount: vatBase,
+          line_total: lineTotalBase,
           account_id: item.account_id || null,
+          unit_price_fx: isForeign ? Number(item.unit_price) : unitPriceBase,
+          vat_amount_fx: isForeign ? vat : vatBase,
+          line_total_fx: isForeign ? lineTotalDoc : lineTotalBase,
         }
       })
 
+    const subtotalBase = isForeign ? subtotalDoc * fxRate : subtotalDoc
+    const vatBase = isForeign ? vatDoc * fxRate : vatDoc
+    const totalBase = isForeign ? totalDoc * fxRate : totalDoc
+
     const purchasePayload = {
       ...formData,
-      subtotal: totals.subtotal,
-      vat_amount: totals.vat,
-      total: totals.total,
+      currency_code: documentCurrency,
+      fx_rate: fxRate,
+      fx_rate_date: formData.fx_rate_date || formData.issue_date,
+      subtotal: subtotalBase,
+      vat_amount: vatBase,
+      total: totalBase,
+      subtotal_fx: subtotalDoc,
+      vat_amount_fx: vatDoc,
+      total_fx: totalDoc,
       items: preparedItems,
     }
 
@@ -251,10 +319,56 @@ const PurchaseDetail = () => {
             </p>
           </div>
         </div>
-        <Button onClick={handleSubmit} loading={isCreating || isUpdating} className="w-full sm:w-auto">
-          <Save className="w-4 h-4 mr-2" />
-          {isNew ? 'Create' : 'Save'}
-        </Button>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
+          <Button variant="outline" onClick={() => window.print()} className="flex-1 sm:flex-none">
+            <Printer className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Print</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                await exportToPDF('purchase-print-view', `Purchase-${formData.invoice_number || 'draft'}`)
+                toast.success('PDF downloaded')
+              } catch (e) {
+                toast.error(e?.message || 'PDF export failed')
+              }
+            }}
+            className="flex-1 sm:flex-none"
+          >
+            <FileDown className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">PDF</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const rows = items
+                .filter((i) => i.description || i.quantity || i.unit_price)
+                .map((i) => {
+                  const { subtotal, vat, total } = calculateLineTotal(i)
+                  return {
+                    Description: i.description || '',
+                    Qty: Number(i.quantity) || 0,
+                    'Unit Price': Number(i.unit_price) || 0,
+                    'VAT %': Number(i.vat_rate) || 0,
+                    Subtotal: subtotal,
+                    VAT: vat,
+                    Total: total,
+                  }
+                })
+              exportToExcel(rows, `Purchase-${formData.invoice_number || 'draft'}-lines`, 'Lines')
+              toast.success('Excel downloaded')
+            }}
+            className="flex-1 sm:flex-none"
+          >
+            <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Excel</span>
+          </Button>
+          <Button onClick={handleSubmit} loading={isCreating || isUpdating} className="flex-1 sm:flex-none">
+            <Save className="w-4 h-4 mr-2" />
+            {isNew ? 'Create' : 'Save'}
+          </Button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-6">
@@ -332,6 +446,38 @@ const PurchaseDetail = () => {
                 required
               />
             </div>
+
+            {isNew && (
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Select
+                  label="Currency"
+                  value={documentCurrency}
+                  onChange={(e) => {
+                    const code = e.target.value
+                    setFormData((prev) => ({
+                      ...prev,
+                      currency_code: code,
+                      fx_rate: code === baseCurrency ? 1 : (suggestedRate?.rate || prev.fx_rate || 1),
+                      fx_rate_date: prev.fx_rate_date || prev.issue_date || format(new Date(), 'yyyy-MM-dd'),
+                    }))
+                  }}
+                  options={(enabledCurrencies.length ? enabledCurrencies.map((ec) => ({ value: ec.currency_code, label: ec.currency_code })) : [{ value: baseCurrency, label: baseCurrency }])}
+                />
+                {isForeignCurrency && (
+                  <div className="space-y-1">
+                    <Input
+                      label={`Exchange rate (1 ${documentCurrency} = ? ${baseCurrency})`}
+                      type="number"
+                      step="0.000001"
+                      min="0.000001"
+                      value={formData.fx_rate}
+                      onChange={(e) => setFormData({ ...formData, fx_rate: e.target.value })}
+                      placeholder={suggestedRate?.rate ? String(suggestedRate.rate) : ''}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
@@ -434,7 +580,7 @@ const PurchaseDetail = () => {
                     </button>
                   </div>
                   <div className="col-span-12 text-right text-sm text-gray-600">
-                    Line Total: {formatCurrency(calculateLineTotal(item).total, activeCompany?.currency)}
+                    Line Total: {formatCurrency(calculateLineTotal(item).total, documentCurrency)}
                   </div>
                 </div>
               ))}
@@ -471,19 +617,40 @@ const PurchaseDetail = () => {
             </h3>
             <div className="flex justify-between text-gray-600">
               <span>Subtotal</span>
-              <span>{formatCurrency(totals.subtotal, activeCompany?.currency)}</span>
+              <span>{formatCurrency(totals.subtotal, documentCurrency)}</span>
             </div>
             <div className="flex justify-between text-gray-600">
               <span>VAT</span>
-              <span>{formatCurrency(totals.vat, activeCompany?.currency)}</span>
+              <span>{formatCurrency(totals.vat, documentCurrency)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold text-gray-900 pt-3 border-t">
               <span>Total</span>
-              <span>{formatCurrency(totals.total, activeCompany?.currency)}</span>
+              <span>{formatCurrency(totals.total, documentCurrency)}</span>
             </div>
+            {isForeignCurrency && (
+              <p className="text-xs text-gray-500 pt-1">
+                ≈ {formatCurrency(totals.total * (Number(formData.fx_rate) || 1), baseCurrency)} in {baseCurrency}
+              </p>
+            )}
           </div>
         </div>
       </form>
+
+      {/* Hidden print/PDF view */}
+      <div className="fixed left-[-9999px] top-0 w-[210mm]" aria-hidden="true">
+        <DocumentPrintView
+          id="purchase-print-view"
+          type="purchase"
+          company={activeCompany || {}}
+          party={suppliers.find((s) => s.id === formData.supplier_id) || {}}
+          formData={formData}
+          items={items}
+          totals={totals}
+          baseCurrency={baseCurrency}
+          documentCurrency={documentCurrency}
+          fxRate={Number(formData.fx_rate) || 1}
+        />
+      </div>
 
       {/* Quick Add Supplier Modal */}
       <Modal
