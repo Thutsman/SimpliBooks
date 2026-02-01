@@ -259,6 +259,7 @@ const PurchaseDetail = () => {
 
     const purchasePayload = {
       ...formData,
+      supplier_id: formData.supplier_id || null,
       currency_code: documentCurrency,
       fx_rate: fxRate,
       fx_rate_date: formData.fx_rate_date || formData.issue_date,
