@@ -863,6 +863,11 @@ const Settings = () => {
         confirmText="Delete Company"
         loading={isDeleting}
       />
+
+      {/* Version Info */}
+      <div className="text-center pt-4 pb-2">
+        <p className="text-xs text-gray-400">SimpliBooks v1.0.0</p>
+      </div>
     </div>
   )
 }

@@ -38,6 +38,7 @@ const DocumentPrintView = ({
           )}
           <p className="font-semibold text-lg">{company.name}</p>
           {company.address_line1 && <p className="text-gray-600">{company.address_line1}</p>}
+          {company.address_line2 && <p className="text-gray-600">{company.address_line2}</p>}
           {(company.city || company.postal_code) && (
             <p className="text-gray-600">{[company.city, company.postal_code].filter(Boolean).join(', ')}</p>
           )}
@@ -61,6 +62,7 @@ const DocumentPrintView = ({
           {party.email && <p className="text-gray-600">{party.email}</p>}
           {party.phone && <p className="text-gray-600">{party.phone}</p>}
           {party.address_line1 && <p className="text-gray-600">{party.address_line1}</p>}
+          {party.address_line2 && <p className="text-gray-600">{party.address_line2}</p>}
           {(party.city || party.postal_code) && (
             <p className="text-gray-600">{[party.city, party.postal_code].filter(Boolean).join(', ')}</p>
           )}

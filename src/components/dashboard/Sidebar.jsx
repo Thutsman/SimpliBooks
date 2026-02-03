@@ -75,7 +75,7 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false, onClose }) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 overflow-y-auto">
+      <nav className="flex-1 py-4 overflow-y-auto scrollbar-hide">
         <ul className="space-y-1 px-2">
           {navItems.map((item) => {
             const Icon = item.icon
@@ -108,12 +108,6 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false, onClose }) => {
         </ul>
       </nav>
 
-      {/* Version */}
-      {(!collapsed || isMobile) && (
-        <div className="p-4 border-t border-gray-800">
-          <p className="text-xs text-gray-500">SimpliBooks v1.0.0</p>
-        </div>
-      )}
     </aside>
   )
 }

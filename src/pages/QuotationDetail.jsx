@@ -40,9 +40,7 @@ const QuotationDetail = () => {
     isConverting,
   } = useQuotations()
 
-  const { data: quotationData, isLoading: quotationLoading } = isNew
-    ? { data: null, isLoading: false }
-    : useQuotation(id)
+  const { data: quotationData, isLoading: quotationLoading } = useQuotation(isNew ? null : id)
 
   const [showConvertModal, setShowConvertModal] = useState(false)
   const [formData, setFormData] = useState({
@@ -243,9 +241,9 @@ const QuotationDetail = () => {
 
     try {
       if (isNew) {
-        const quotation = await createQuotation(quotationPayload)
+        await createQuotation(quotationPayload)
         toast.success('Quotation created successfully')
-        navigate(`/dashboard/quotations/${quotation.id}`)
+        navigate('/dashboard/quotations')
       } else {
         await updateQuotation({ id, ...quotationPayload })
         toast.success('Quotation updated successfully')
@@ -279,6 +277,20 @@ const QuotationDetail = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    )
+  }
+
+  if (!isNew && !quotationLoading && !quotationData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-gray-600">Quotation not found.</p>
+        <button
+          onClick={() => navigate('/dashboard/quotations')}
+          className="text-accent-600 hover:underline font-medium"
+        >
+          Back to quotations
+        </button>
       </div>
     )
   }
@@ -569,9 +581,12 @@ const QuotationDetail = () => {
             {activeCompany?.address_line1 && (
               <p className="text-sm text-gray-600">{activeCompany.address_line1}</p>
             )}
-            {activeCompany?.city && activeCompany?.postal_code && (
+            {activeCompany?.address_line2 && (
+              <p className="text-sm text-gray-600">{activeCompany.address_line2}</p>
+            )}
+            {(activeCompany?.city || activeCompany?.postal_code) && (
               <p className="text-sm text-gray-600">
-                {activeCompany.city}, {activeCompany.postal_code}
+                {[activeCompany.city, activeCompany.postal_code].filter(Boolean).join(', ')}
               </p>
             )}
             {activeCompany?.vat_number && (

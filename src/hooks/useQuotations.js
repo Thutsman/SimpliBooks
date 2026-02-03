@@ -55,7 +55,7 @@ export const useQuotations = (filters = {}) => {
 
       if (itemsError) throw itemsError
 
-      return { ...quotation, items }
+      return { ...quotation, items: items ?? [] }
     },
     enabled: !!id,
   })
