@@ -5,22 +5,22 @@ import Button from '../ui/Button'
 const plans = [
   {
     name: 'Starter',
-    price: 'Free',
-    period: 'forever',
-    description: 'Perfect for freelancers and side projects',
+    price: '$9',
+    period: '/month',
+    description: 'Perfect for freelancers and side hustlers',
     features: [
       '1 Company',
       'Full Accounting Engine',
       'VAT 201 Reports',
-      '50 Invoices/month',
+      '100 Invoices/month',
       'Email Support',
     ],
-    cta: 'Get Started',
+    cta: 'Start Free Trial',
     popular: false,
   },
   {
     name: 'Professional',
-    price: '$19',
+    price: '$29',
     period: '/month',
     description: 'Ideal for growing small businesses',
     features: [
@@ -36,8 +36,8 @@ const plans = [
     popular: true,
   },
   {
-    name: 'Enterprise',
-    price: '$49',
+    name: 'Business',
+    price: '$69',
     period: '/month',
     description: 'For established businesses with complex needs',
     features: [
@@ -50,7 +50,7 @@ const plans = [
       'Dedicated Account Manager',
       'Custom Integrations',
     ],
-    cta: 'Contact Sales',
+    cta: 'Start Free Trial',
     popular: false,
   },
 ]
@@ -75,6 +75,9 @@ const Pricing = () => {
           <p className="mt-4 text-lg text-slate-400">
             Choose the plan that fits your business. Upgrade or downgrade
             anytime.
+          </p>
+          <p className="mt-3 text-accent-400 font-medium">
+            14-day free trial on all plans. No credit card required.
           </p>
         </div>
 
