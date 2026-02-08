@@ -108,55 +108,19 @@ const Onboarding = () => {
     setIsSubmitting(true)
 
     try {
-      // Create the company
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert({
-          ...formData,
-          user_id: user.id,
-        })
-        .select()
-        .single()
+      // Use the server-side RPC function which handles everything atomically:
+      // creates company, company_members row, seeds accounts/VAT rates,
+      // and marks onboarding as complete.
+      const { data: companyId, error } = await supabase.rpc('complete_onboarding', {
+        p_company: formData,
+        p_accounts: DEFAULT_ACCOUNTS,
+        p_vat_rates: DEFAULT_VAT_RATES,
+      })
 
-      if (companyError) throw companyError
-
-      // Seed default accounts
-      const accounts = DEFAULT_ACCOUNTS.map(account => ({
-        ...account,
-        company_id: company.id,
-      }))
-
-      const { error: accountsError } = await supabase
-        .from('accounts')
-        .insert(accounts)
-
-      if (accountsError) throw accountsError
-
-      // Seed default VAT rates
-      const vatRates = DEFAULT_VAT_RATES.map(rate => ({
-        ...rate,
-        company_id: company.id,
-      }))
-
-      const { error: vatError } = await supabase
-        .from('vat_rates')
-        .insert(vatRates)
-
-      if (vatError) throw vatError
-
-      // Mark onboarding as complete
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          onboarding_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
-
-      if (profileError) throw profileError
+      if (error) throw error
 
       // Store active company
-      localStorage.setItem('activeCompanyId', company.id)
+      localStorage.setItem('activeCompanyId', companyId)
 
       // Invalidate queries so ProtectedRoute sees the updated state
       await queryClient.invalidateQueries({ queryKey: ['profile'] })
