@@ -21,6 +21,8 @@ import Purchases from './pages/Purchases'
 import PurchaseDetail from './pages/PurchaseDetail'
 import Accounts from './pages/Accounts'
 import Banking from './pages/Banking'
+import Payroll from './pages/Payroll'
+import PayrollRunDetail from './pages/PayrollRunDetail'
 import Products from './pages/Products'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
@@ -74,6 +76,8 @@ function App() {
             <Route path="purchases/:id" element={<PurchaseDetail />} />
             <Route path="accounts" element={<Accounts />} />
             <Route path="banking" element={<Banking />} />
+            <Route path="payroll" element={<Payroll />} />
+            <Route path="payroll/runs/:id" element={<PayrollRunDetail />} />
             <Route path="products" element={<Products />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="reports" element={<Reports />} />

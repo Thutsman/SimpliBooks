@@ -38,6 +38,8 @@ export const usePermissions = () => {
   const canDeleteCompany = role === 'owner'
   const canManageSettings =
     role && (role === 'owner' || role === 'admin')
+  const canManagePayroll =
+    role && ROLES.indexOf(role) <= ROLES.indexOf('accountant')
   const isViewer = role === 'viewer'
 
   return {
@@ -48,6 +50,7 @@ export const usePermissions = () => {
     canEditCompany,
     canDeleteCompany,
     canManageSettings,
+    canManagePayroll,
     isViewer,
   }
 }

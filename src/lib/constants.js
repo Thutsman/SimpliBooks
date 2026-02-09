@@ -15,6 +15,7 @@ export const DEFAULT_ACCOUNTS = [
   { code: '2000', name: 'Accounts Payable', type: 'liability', sub_type: 'current_liability', is_system: true },
   { code: '2100', name: 'VAT Payable', type: 'liability', sub_type: 'current_liability', is_system: true },
   { code: '2200', name: 'PAYE Payable', type: 'liability', sub_type: 'current_liability', is_system: false },
+  { code: '2250', name: 'UIF Payable', type: 'liability', sub_type: 'current_liability', is_system: false },
   { code: '2300', name: 'Accrued Expenses', type: 'liability', sub_type: 'current_liability', is_system: false },
   { code: '2500', name: 'Loans Payable', type: 'liability', sub_type: 'long_term_liability', is_system: false },
 
@@ -34,6 +35,7 @@ export const DEFAULT_ACCOUNTS = [
   { code: '5100', name: 'Purchases', type: 'expense', sub_type: 'cost_of_sales', is_system: true },
   { code: '5110', name: 'Inventory Adjustments', type: 'expense', sub_type: 'cost_of_sales', is_system: true },
   { code: '6000', name: 'Salaries & Wages', type: 'expense', sub_type: 'operating_expense', is_system: false },
+  { code: '6010', name: 'UIF Employer Expense', type: 'expense', sub_type: 'operating_expense', is_system: false },
   { code: '6100', name: 'Rent Expense', type: 'expense', sub_type: 'operating_expense', is_system: false },
   { code: '6200', name: 'Utilities', type: 'expense', sub_type: 'operating_expense', is_system: false },
   { code: '6300', name: 'Insurance', type: 'expense', sub_type: 'operating_expense', is_system: false },
@@ -160,6 +162,20 @@ export const PURCHASE_STATUSES = [
   { value: 'cancelled', label: 'Cancelled', color: 'gray' },
 ]
 
+// Payroll Run Statuses
+export const PAYROLL_RUN_STATUSES = [
+  { value: 'draft', label: 'Draft', color: 'gray' },
+  { value: 'processed', label: 'Processed', color: 'blue' },
+  { value: 'paid', label: 'Paid', color: 'green' },
+  { value: 'cancelled', label: 'Cancelled', color: 'gray' },
+]
+
+// Salary Types
+export const SALARY_TYPES = [
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'hourly', label: 'Hourly' },
+]
+
 // Locale per currency for correct symbol/formatting (ISO 4217 codes)
 const CURRENCY_LOCALE = {
   ZAR: 'en-ZA',
@@ -219,6 +235,7 @@ export const getStatusColor = (status) => {
     paid: 'bg-accent-100 text-accent-700',
     overdue: 'bg-red-100 text-red-700',
     cancelled: 'bg-gray-100 text-gray-500',
+    processed: 'bg-blue-100 text-blue-700',
     unpaid: 'bg-yellow-100 text-yellow-700',
     accepted: 'bg-accent-100 text-accent-700',
     declined: 'bg-red-100 text-red-700',

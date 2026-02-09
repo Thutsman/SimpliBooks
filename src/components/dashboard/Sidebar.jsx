@@ -16,6 +16,7 @@ import {
   Package,
   Warehouse,
   History,
+  Wallet,
 } from 'lucide-react'
 
 const navItems = [
@@ -29,6 +30,7 @@ const navItems = [
   { name: 'Suppliers', href: '/dashboard/suppliers', icon: Truck },
   { name: 'Accounts', href: '/dashboard/accounts', icon: CreditCard },
   { name: 'Banking', href: '/dashboard/banking', icon: Landmark },
+  { name: 'Payroll', href: '/dashboard/payroll', icon: Wallet },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
   { name: 'Activity Log', href: '/dashboard/activity', icon: History },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
@@ -75,8 +77,8 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false, onClose }) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 overflow-y-auto scrollbar-hide">
-        <ul className="space-y-1 px-2">
+      <nav className="flex-1 py-2 overflow-y-auto scrollbar-hide">
+        <ul className="space-y-0.5 px-2">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.href ||
@@ -88,7 +90,7 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false, onClose }) => {
                   to={item.href}
                   onClick={handleNavClick}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg
+                    flex items-center gap-3 px-3 py-2 rounded-lg
                     transition-colors duration-200
                     ${isActive
                       ? 'bg-accent-600 text-white'

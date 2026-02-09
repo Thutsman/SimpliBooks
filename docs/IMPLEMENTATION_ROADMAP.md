@@ -157,17 +157,62 @@ Build a proper double-entry accounting engine that automatically creates journal
 
 ---
 
-## Phase 8: Payroll (Future) 🔲 NOT STARTED
+## Phase 8: Payroll ✅ COMPLETED
 
-### To Be Implemented
+### Objectives
+Add payroll capabilities — manage employees, process salary runs with country-specific PAYE/UIF tax calculations, and auto-create journal entries for payroll expenses. Targeting the Southern African market (South Africa, Botswana, Zimbabwe).
+
+### Implemented Features
+
+| Feature | Status | Migration/File |
+|---------|--------|----------------|
+| Employees Table (CRUD) | ✅ Done | `017_payroll.sql`, `src/hooks/usePayroll.js`, `src/pages/Payroll.jsx` |
+| Payroll Runs Table | ✅ Done | `017_payroll.sql`, `src/hooks/usePayroll.js`, `src/pages/Payroll.jsx` |
+| Payroll Items (per-employee line items) | ✅ Done | `017_payroll.sql`, `src/hooks/usePayroll.js`, `src/pages/PayrollRunDetail.jsx` |
+| Auto-numbering (EMP-0001, PR-2026-00001) | ✅ Done | `017_payroll.sql` (DB functions + frontend helpers) |
+| PAYE Calculations (SA, BW, ZW) | ✅ Done | `src/lib/payrollTaxTables.js`, `src/hooks/usePayroll.js` |
+| UIF / NSSA Calculations (SA, BW, ZW) | ✅ Done | `src/lib/payrollTaxTables.js`, `src/hooks/usePayroll.js` |
+| Journal Entry Auto-Posting (Processed) | ✅ Done | `017_payroll.sql` (trigger: debit Salaries + UIF Expense, credit PAYE + UIF Payable + AP) |
+| Journal Entry Auto-Posting (Paid) | ✅ Done | `017_payroll.sql` (trigger: debit AP, credit Bank) |
+| New Accounts (2250 UIF Payable, 6010 UIF Employer Expense) | ✅ Done | `017_payroll.sql`, `src/lib/constants.js` |
+| RLS Policies (employees, payroll_runs, payroll_items) | ✅ Done | `017_payroll.sql` |
+| Payroll Permission (canManagePayroll) | ✅ Done | `src/hooks/usePermissions.js` |
+| Sidebar & Routing | ✅ Done | `src/components/dashboard/Sidebar.jsx`, `src/App.jsx` |
+
+### Tax Tables
+
+**South Africa (2025/2026):**
+- 7-tier progressive PAYE brackets (18%–45%)
+- Tax rebates: Primary R17,235 / Secondary R9,444 / Tertiary R3,145
+- UIF: 1% employee + 1% employer (monthly ceiling R17,712)
+
+**Botswana:**
+- 5-tier progressive PAYE brackets (0%–25%)
+- No UIF equivalent
+
+**Zimbabwe:**
+- 6-tier progressive PAYE brackets (0%–40%)
+- AIDS Levy: 3% of PAYE
+- NSSA: 4.5% employee + 4.5% employer (capped)
+
+### Auto-Posting Logic
+
+**Payroll Processed (draft → processed):**
+- Debit 6000 Salaries & Wages (total gross)
+- Debit 6010 UIF Employer Expense (total employer UIF)
+- Credit 2200 PAYE Payable (total PAYE)
+- Credit 2250 UIF Payable (total employee UIF + employer UIF)
+- Credit 2000 Accounts Payable (total net pay)
+
+**Payroll Paid (processed → paid):**
+- Debit 2000 Accounts Payable (total net)
+- Credit 1000 Bank (total net)
+
+### To Be Implemented (Follow-up)
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| Employee Management | ❌ Not Started | Low |
-| Salary Processing | ❌ Not Started | Low |
-| PAYE Calculations | ❌ Not Started | Low |
-| UIF Calculations | ❌ Not Started | Low |
-| Payslip Generation | ❌ Not Started | Low |
+| Payslip PDF Generation | ❌ Not Started | Medium |
 | IRP5 Generation | ❌ Not Started | Low |
 
 ---
@@ -200,9 +245,14 @@ Build a proper double-entry accounting engine that automatically creates journal
 - `stock_adjustments` / `stock_adjustment_lines` - Stock take
 
 ### Accounting Tables
-- `journal_entries` - Journal entry headers
+- `journal_entries` - Journal entry headers (entry_type includes `payroll`, `payroll_payment`)
 - `journal_entry_lines` - Debit/credit lines
 - `bank_transactions` - Bank transaction records
+
+### Payroll Tables
+- `employees` - Employee records (per company, auto-numbered EMP-0001)
+- `payroll_runs` - Payroll run headers (draft/processed/paid/cancelled)
+- `payroll_items` - Per-employee line items per run (gross, PAYE, UIF, net)
 
 ---
 
@@ -226,9 +276,9 @@ Build a proper double-entry accounting engine that automatically creates journal
 | Phase 5: Inventory Management | ✅ Complete | 100% |
 | Phase 6: Multi-Currency | ✅ Complete | 100% (Forex gain/loss & revaluation deferred) |
 | Phase 7: Advanced Features | ✅ Partial | RBAC, Invitations, Audit Log, Document Export done |
-| Phase 8: Payroll | 🔲 Not Started | 0% |
+| Phase 8: Payroll | ✅ Complete | 100% (Payslip PDF & IRP5 deferred) |
 
-**Overall Progress: ~75%**
+**Overall Progress: ~85%**
 
 ---
 
@@ -241,9 +291,10 @@ Build a proper double-entry accounting engine that automatically creates journal
 
 ---
 
-## Files Modified (Phases 1–7)
+## Files Modified (Phases 1–8)
 
 ### Migrations
+- `017_payroll.sql` - employees, payroll_runs, payroll_items tables; auto-numbering functions; RLS policies; journal entry trigger; UIF accounts
 - `014_rbac_and_audit.sql` - company_members, RBAC helper functions, RLS replacement, activity_log table + triggers
 - `015_company_invitations.sql` - company_invitations table, accept_invitation RPC
 - `013_multi_currency.sql` - Currencies, company_currencies, exchange_rates; FX columns + backfill
@@ -278,8 +329,12 @@ Build a proper double-entry accounting engine that automatically creates journal
 - `src/pages/Reports.jsx` - Reports UI and Excel/PDF export
 - `src/pages/Banking.jsx` - Banking UI
 - `src/components/auth/ProtectedRoute.jsx` - Onboarding redirect
-- `src/lib/constants.js` - VAT rates, account codes
+- `src/lib/constants.js` - VAT rates, account codes, payroll statuses, salary types
+- `src/lib/payrollTaxTables.js` - PAYE brackets and UIF/NSSA rates for SA, BW, ZW
+- `src/hooks/usePayroll.js` - Employee CRUD, payroll run management, tax calculation functions
+- `src/pages/Payroll.jsx` - Payroll page (Employees tab + Payroll Runs tab)
+- `src/pages/PayrollRunDetail.jsx` - Individual payroll run detail with editable line items
 
 ---
 
-*Last Updated: January 31, 2026*
+*Last Updated: February 9, 2026*
