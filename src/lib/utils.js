@@ -116,6 +116,58 @@ export const getDateRange = (period) => {
   }
 }
 
+// Parse date from bank statement (supports multiple formats)
+export const parseBankStatementDate = (dateStr) => {
+  if (!dateStr) return null
+
+  // Remove extra whitespace
+  const cleaned = dateStr.trim()
+
+  // Try to parse common date formats
+  // Formats: DD/MM/YYYY, DD/M/YYYY, DD-MM-YYYY, YYYY-MM-DD, MM/DD/YYYY, etc.
+  
+  // Pattern 1: DD/MM/YYYY or DD/M/YYYY or D/M/YYYY (most common in bank exports)
+  const ddmmyyyyMatch = cleaned.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+  if (ddmmyyyyMatch) {
+    const day = parseInt(ddmmyyyyMatch[1], 10)
+    const month = parseInt(ddmmyyyyMatch[2], 10)
+    const year = parseInt(ddmmyyyyMatch[3], 10)
+    
+    // Check if it's DD/MM/YYYY (day > 12 means it can't be MM/DD/YYYY)
+    if (day > 12) {
+      // Definitely DD/MM/YYYY
+      return format(new Date(year, month - 1, day), 'yyyy-MM-dd')
+    } else if (month > 12) {
+      // Must be MM/DD/YYYY format
+      return format(new Date(year, day - 1, month), 'yyyy-MM-dd')
+    } else {
+      // Ambiguous - assume DD/MM/YYYY (international standard)
+      return format(new Date(year, month - 1, day), 'yyyy-MM-dd')
+    }
+  }
+
+  // Pattern 2: YYYY-MM-DD or YYYY/MM/DD (ISO format)
+  const yyyymmddMatch = cleaned.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/)
+  if (yyyymmddMatch) {
+    const year = parseInt(yyyymmddMatch[1], 10)
+    const month = parseInt(yyyymmddMatch[2], 10)
+    const day = parseInt(yyyymmddMatch[3], 10)
+    return format(new Date(year, month - 1, day), 'yyyy-MM-dd')
+  }
+
+  // Try native Date parsing as fallback
+  try {
+    const date = new Date(cleaned)
+    if (!isNaN(date.getTime())) {
+      return format(date, 'yyyy-MM-dd')
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
+  return null
+}
+
 // Classify transaction type
 export const classifyTransactionType = (description, amount) => {
   const desc = description.toLowerCase()

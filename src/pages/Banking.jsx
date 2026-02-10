@@ -13,7 +13,7 @@ import { Select } from '../components/ui/Input'
 import Modal, { ConfirmModal } from '../components/ui/Modal'
 import DataTable from '../components/dashboard/DataTable'
 import { formatCurrency, formatDate } from '../lib/constants'
-import { parseCSV } from '../lib/utils'
+import { parseCSV, parseBankStatementDate } from '../lib/utils'
 import { useCompany } from '../context/CompanyContext'
 
 const Banking = () => {
@@ -118,8 +118,14 @@ const Banking = () => {
     const parsedTransactions = importedData
       .map((row) => {
         const amount = parseFloat(row[columnMapping.amount]?.replace(/[^-\d.]/g, '') || '0')
+        const parsedDate = parseBankStatementDate(row[columnMapping.date])
+        
+        if (!parsedDate) {
+          console.warn('Could not parse date:', row[columnMapping.date])
+        }
+        
         return {
-          date: row[columnMapping.date],
+          date: parsedDate,
           description: row[columnMapping.description],
           amount: Math.abs(amount),
           type: amount >= 0 ? 'credit' : 'debit',
