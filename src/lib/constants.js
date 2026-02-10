@@ -75,7 +75,7 @@ export const VAT_RATES_BY_COUNTRY = {
     { id: 'bw-exempt', name: 'Exempt', rate: 0, is_default: false, description: 'VAT exempt supplies' },
   ],
   'Zimbabwe': [
-    { id: 'zw-std', name: 'Standard Rate (15%)', rate: 15, is_default: true, description: 'Standard VAT rate' },
+    { id: 'zw-std', name: 'Standard Rate (15.5%)', rate: 15.5, is_default: true, description: 'Standard VAT rate for most goods and services' },
     { id: 'zw-zero', name: 'Zero Rated (0%)', rate: 0, is_default: false, description: 'Zero-rated supplies (exports, basic commodities)' },
     { id: 'zw-exempt', name: 'Exempt', rate: 0, is_default: false, description: 'VAT exempt supplies' },
   ],

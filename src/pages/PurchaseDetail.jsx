@@ -13,7 +13,7 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { Select, Textarea } from '../components/ui/Input'
 import Modal from '../components/ui/Modal'
-import { formatCurrency } from '../lib/constants'
+import { formatCurrency, getDefaultVATRate } from '../lib/constants'
 import DocumentPrintView from '../components/documents/DocumentPrintView'
 import { exportToPDF, exportToExcel } from '../lib/utils'
 import { format, addDays } from 'date-fns'
@@ -49,6 +49,9 @@ const PurchaseDetail = () => {
   // Always call the hook unconditionally - the enabled option inside handles the condition
   const { data: purchaseData, isLoading: purchaseLoading } = usePurchase(isNew ? null : id)
 
+  // Default VAT rate based on company country (supports fractional rates like 15.5% for Zimbabwe)
+  const defaultVatRate = getDefaultVATRate(activeCompany?.country)
+
   const [formData, setFormData] = useState({
     invoice_number: '',
     supplier_id: '',
@@ -70,7 +73,7 @@ const PurchaseDetail = () => {
   )
 
   const [items, setItems] = useState([
-    { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15, account_id: '' },
+    { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: defaultVatRate, account_id: '' },
   ])
   const itemsLocked = !isNew
 
@@ -114,14 +117,20 @@ const PurchaseDetail = () => {
       })
       if (purchaseData.items && purchaseData.items.length > 0) {
         setItems(
-          purchaseData.items.map((item) => ({
-            product_id: item.product_id || '',
-            description: item.description || '',
-            quantity: item.quantity || 1,
-            unit_price: Number(useFx && item.unit_price_fx != null ? item.unit_price_fx : item.unit_price) || 0,
-            vat_rate: Number(item.vat_rate) || 15,
-            account_id: item.account_id || '',
-          }))
+          purchaseData.items.map((item) => {
+            const lineVatRate =
+              item.vat_rate !== null && item.vat_rate !== undefined
+                ? Number(item.vat_rate)
+                : defaultVatRate
+            return {
+              product_id: item.product_id || '',
+              description: item.description || '',
+              quantity: item.quantity || 1,
+              unit_price: Number(useFx && item.unit_price_fx != null ? item.unit_price_fx : item.unit_price) || 0,
+              vat_rate: lineVatRate,
+              account_id: item.account_id || '',
+            }
+          })
         )
       }
     }
@@ -148,7 +157,7 @@ const PurchaseDetail = () => {
   const handleAddItem = () => {
     setItems([
       ...items,
-      { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15, account_id: '' },
+      { product_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: defaultVatRate, account_id: '' },
     ])
   }
 
@@ -159,15 +168,15 @@ const PurchaseDetail = () => {
     }
     const product = products.find((p) => p.id === productId)
     if (!product) return
-    const newItems = [...items]
-    newItems[index] = {
-      ...newItems[index],
-      product_id: product.id,
-      description: product.name || newItems[index].description,
-      unit_price: Number(product.purchase_cost) || 0,
-      vat_rate: Number(product.vat_rate_default) ?? 15,
-    }
-    setItems(newItems)
+      const newItems = [...items]
+      newItems[index] = {
+        ...newItems[index],
+        product_id: product.id,
+        description: product.name || newItems[index].description,
+        unit_price: Number(product.purchase_cost) || 0,
+        vat_rate: Number(product.vat_rate_default ?? defaultVatRate),
+      }
+      setItems(newItems)
   }
 
   const handleRemoveItem = (index) => {
@@ -568,6 +577,7 @@ const PurchaseDetail = () => {
                       }
                       min="0"
                       max="100"
+                      step="0.01"
                       disabled={itemsLocked}
                     />
                   </div>
