@@ -1,4 +1,4 @@
-# Deploy Supabase Edge Functions (invite-user)
+# Deploy Supabase Edge Functions (invite-user, payfast-itn-handler)
 # Prerequisites:
 #   1. Supabase CLI: https://supabase.com/docs/guides/cli
 #   2. One-time link: run "supabase link" and choose your project (or use --project-ref YOUR_REF)
@@ -21,3 +21,8 @@ Write-Host "Deploying Edge Function: invite-user..." -ForegroundColor Green
 supabase functions deploy invite-user
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "Done. invite-user is deployed." -ForegroundColor Green
+
+Write-Host "Deploying Edge Function: payfast-itn-handler..." -ForegroundColor Green
+supabase functions deploy payfast-itn-handler --no-verify-jwt
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-Host "Done. payfast-itn-handler is deployed." -ForegroundColor Green

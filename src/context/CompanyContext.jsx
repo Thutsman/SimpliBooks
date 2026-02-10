@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { DEFAULT_ACCOUNTS, DEFAULT_VAT_RATES } from '../lib/constants'
+import { checkCompanyLimit } from '../lib/subscription'
 
 const CompanyContext = createContext(null)
 
@@ -94,6 +95,12 @@ export const CompanyProvider = ({ children }) => {
   // Create company mutation
   const createCompanyMutation = useMutation({
     mutationFn: async (companyData) => {
+      // Check subscription limit before creating
+      const limitCheck = await checkCompanyLimit(supabase, user.id)
+      if (!limitCheck.allowed) {
+        throw new Error(limitCheck.reason)
+      }
+
       // Create the company
       const { data: company, error: companyError } = await supabase
         .from('companies')

@@ -5,7 +5,7 @@ import Button from '../ui/Button'
 const plans = [
   {
     name: 'Starter',
-    price: '$9',
+    price: 'R169',
     period: '/month',
     description: 'Perfect for freelancers and side hustlers',
     features: [
@@ -20,7 +20,7 @@ const plans = [
   },
   {
     name: 'Professional',
-    price: '$29',
+    price: 'R549',
     period: '/month',
     description: 'Ideal for growing small businesses',
     features: [
@@ -37,7 +37,7 @@ const plans = [
   },
   {
     name: 'Business',
-    price: '$69',
+    price: 'R1,299',
     period: '/month',
     description: 'For established businesses with complex needs',
     features: [
@@ -77,7 +77,7 @@ const Pricing = () => {
             anytime.
           </p>
           <p className="mt-3 text-accent-400 font-medium">
-            14-day free trial on all plans. No credit card required.
+            5-day free trial on all plans. No credit card required.
           </p>
         </div>
 

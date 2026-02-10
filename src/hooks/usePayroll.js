@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
+import { useAuth } from '../context/AuthContext'
 import { getTaxTablesForCountry } from '../lib/payrollTaxTables'
+import { checkEmployeeLimit } from '../lib/subscription'
 
 // =============================================
 // Pure tax calculation functions
@@ -102,6 +104,7 @@ export const generatePayrollItems = (employees, country = 'South Africa') => {
 // =============================================
 export const useEmployees = (filters = {}) => {
   const { activeCompanyId } = useCompany()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
 
   const employeesQuery = useQuery({
@@ -148,6 +151,14 @@ export const useEmployees = (filters = {}) => {
 
   const createEmployee = useMutation({
     mutationFn: async (employeeData) => {
+      // Check subscription limit before creating
+      if (user?.id && activeCompanyId) {
+        const limitCheck = await checkEmployeeLimit(supabase, user.id, activeCompanyId)
+        if (!limitCheck.allowed) {
+          throw new Error(limitCheck.reason)
+        }
+      }
+
       const { data, error } = await supabase
         .from('employees')
         .insert({

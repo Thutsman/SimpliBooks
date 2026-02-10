@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
 import { useAuth } from '../context/AuthContext'
+import { checkTeamMemberLimit } from '../lib/subscription'
 
 const getFunctionsUrl = () => {
   const url = import.meta.env.VITE_SUPABASE_URL
@@ -31,6 +32,14 @@ export const useCompanyInvitations = () => {
 
   const createInvitation = useMutation({
     mutationFn: async ({ email, role }) => {
+      // Check subscription limit before inviting
+      if (user?.id && activeCompanyId) {
+        const limitCheck = await checkTeamMemberLimit(supabase, user.id, activeCompanyId)
+        if (!limitCheck.allowed) {
+          throw new Error(limitCheck.reason)
+        }
+      }
+
       const { data, error } = await supabase
         .from('company_invitations')
         .insert({

@@ -1,9 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useCompany } from '../context/CompanyContext'
+import { useAuth } from '../context/AuthContext'
+import { checkInvoiceLimit, recordInvoiceCreation } from '../lib/subscription'
 
 export const useInvoices = (filters = {}) => {
   const { activeCompanyId } = useCompany()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
 
   const invoicesQuery = useQuery({
@@ -99,6 +102,14 @@ export const useInvoices = (filters = {}) => {
 
   const createInvoice = useMutation({
     mutationFn: async ({ items, ...invoiceData }) => {
+      // Check subscription limit before creating
+      if (user?.id && activeCompanyId) {
+        const limitCheck = await checkInvoiceLimit(supabase, user.id, activeCompanyId)
+        if (!limitCheck.allowed) {
+          throw new Error(limitCheck.reason)
+        }
+      }
+
       // Create invoice
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
@@ -132,6 +143,10 @@ export const useInvoices = (filters = {}) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
       queryClient.invalidateQueries({ queryKey: ['recent-invoices'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      // Record usage for invoice limits
+      if (user?.id && activeCompanyId) {
+        recordInvoiceCreation(supabase, user.id, activeCompanyId).catch(console.warn)
+      }
     },
   })
 

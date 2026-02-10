@@ -55,7 +55,7 @@ const CTA = () => {
 
         {/* Trust Badge */}
         <p className="mt-6 text-sm text-primary-200">
-          14-day free trial • No credit card required • Cancel anytime
+          5-day free trial • No credit card required • Cancel anytime
         </p>
       </div>
     </section>

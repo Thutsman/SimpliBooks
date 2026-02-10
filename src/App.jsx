@@ -8,6 +8,9 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
+import Security from './pages/Security'
 import Onboarding from './pages/Onboarding'
 import DashboardLayout from './components/dashboard/DashboardLayout'
 import Dashboard from './pages/Dashboard'
@@ -27,6 +30,7 @@ import Products from './pages/Products'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
 import ActivityLog from './pages/ActivityLog'
+import Billing from './pages/Billing'
 import Settings from './pages/Settings'
 
 function App() {
@@ -40,6 +44,9 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/security" element={<Security />} />
 
           {/* Onboarding - protected but skips onboarding check */}
           <Route
@@ -82,6 +89,7 @@ function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="reports" element={<Reports />} />
             <Route path="activity" element={<ActivityLog />} />
+            <Route path="billing" element={<Billing />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

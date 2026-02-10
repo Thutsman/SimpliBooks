@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data: existingProfile } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, subscription_status')
           .eq('id', user.id)
           .single()
 
@@ -51,6 +51,11 @@ export const AuthProvider = ({ children }) => {
             email: user.email,
             full_name: user.user_metadata?.full_name || '',
           })
+        }
+
+        // Create trial subscription for new users (idempotent — ON CONFLICT DO NOTHING)
+        if (!existingProfile || !existingProfile.subscription_status || existingProfile.subscription_status === 'none') {
+          await supabase.rpc('create_trial_subscription', { p_user_id: user.id }).catch(() => {})
         }
       } catch (err) {
         // Non-critical — don't block auth flow
