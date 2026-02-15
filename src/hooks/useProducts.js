@@ -50,9 +50,11 @@ export const useProducts = (filters = {}) => {
   const createProduct = useMutation({
     mutationFn: async (productData) => {
       if (!activeCompanyId) throw new Error('No company selected.')
+      const cleaned = { ...productData, company_id: activeCompanyId }
+      if (!cleaned.sku) cleaned.sku = null
       const { data, error } = await supabase
         .from('products')
-        .insert({ ...productData, company_id: activeCompanyId })
+        .insert(cleaned)
         .select()
         .single()
       if (error) throw error
@@ -66,6 +68,7 @@ export const useProducts = (filters = {}) => {
 
   const updateProduct = useMutation({
     mutationFn: async ({ id, ...data }) => {
+      if ('sku' in data && !data.sku) data.sku = null
       const { data: product, error } = await supabase
         .from('products')
         .update(data)
