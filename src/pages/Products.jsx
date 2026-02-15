@@ -7,7 +7,7 @@ import Input from '../components/ui/Input'
 import { Select, Textarea } from '../components/ui/Input'
 import Modal, { ConfirmModal } from '../components/ui/Modal'
 import DataTable from '../components/dashboard/DataTable'
-import { formatCurrency } from '../lib/constants'
+import { formatCurrency, getDefaultVATRate } from '../lib/constants'
 import { useCompany } from '../context/CompanyContext'
 
 const PRODUCT_TYPES = [
@@ -17,6 +17,7 @@ const PRODUCT_TYPES = [
 
 const Products = () => {
   const { activeCompany } = useCompany()
+  const defaultVAT = getDefaultVATRate(activeCompany?.country)
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
@@ -28,7 +29,7 @@ const Products = () => {
     description: '',
     sales_price: 0,
     purchase_cost: 0,
-    vat_rate_default: 15,
+    vat_rate_default: defaultVAT,
     track_inventory: false,
     reorder_level: 0,
     reorder_quantity: 0,
@@ -56,7 +57,7 @@ const Products = () => {
       description: '',
       sales_price: 0,
       purchase_cost: 0,
-      vat_rate_default: 15,
+      vat_rate_default: defaultVAT,
       track_inventory: false,
       reorder_level: 0,
       reorder_quantity: 0,
@@ -75,7 +76,7 @@ const Products = () => {
         description: product.description || '',
         sales_price: Number(product.sales_price) || 0,
         purchase_cost: Number(product.purchase_cost) || 0,
-        vat_rate_default: Number(product.vat_rate_default) ?? 15,
+        vat_rate_default: Number(product.vat_rate_default) ?? defaultVAT,
         track_inventory: product.track_inventory || false,
         reorder_level: Number(product.reorder_level) || 0,
         reorder_quantity: Number(product.reorder_quantity) || 0,
@@ -94,7 +95,7 @@ const Products = () => {
         ...formData,
         sales_price: Number(formData.sales_price) || 0,
         purchase_cost: Number(formData.purchase_cost) || 0,
-        vat_rate_default: Number(formData.vat_rate_default) ?? 15,
+        vat_rate_default: Number(formData.vat_rate_default) ?? defaultVAT,
         reorder_level: Number(formData.reorder_level) || 0,
         reorder_quantity: Number(formData.reorder_quantity) || 0,
       }
