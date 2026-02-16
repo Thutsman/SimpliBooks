@@ -540,8 +540,9 @@ const InvoiceDetail = () => {
                       disabled={itemsLocked || productsLoading}
                     />
                   </div>
-                  <div className="col-span-12 sm:col-span-5">
+                  <div className="col-span-12 sm:col-span-4">
                     <Input
+                      label="Description"
                       placeholder="Description"
                       value={item.description}
                       onChange={(e) =>
@@ -552,9 +553,10 @@ const InvoiceDetail = () => {
                   </div>
                   <div className="col-span-4 sm:col-span-1">
                     <Input
+                      label="Qty"
                       type="number"
                       placeholder="Qty"
-                      value={item.quantity}
+                      value={item.quantity || ''}
                       onChange={(e) =>
                         handleItemChange(index, 'quantity', e.target.value)
                       }
@@ -565,9 +567,10 @@ const InvoiceDetail = () => {
                   </div>
                   <div className="col-span-4 sm:col-span-2">
                     <Input
+                      label="Price"
                       type="number"
                       placeholder="Price"
-                      value={item.unit_price}
+                      value={item.unit_price || ''}
                       onChange={(e) =>
                         handleItemChange(index, 'unit_price', e.target.value)
                       }
@@ -576,8 +579,9 @@ const InvoiceDetail = () => {
                       disabled={itemsLocked}
                     />
                   </div>
-                  <div className="col-span-3 sm:col-span-1">
+                  <div className="col-span-3 sm:col-span-2">
                     <VATRateInlineSelect
+                      label="VAT"
                       value={item.vat_rate}
                       onChange={(value) =>
                         handleItemChange(index, 'vat_rate', value)
@@ -586,7 +590,7 @@ const InvoiceDetail = () => {
                       disabled={itemsLocked}
                     />
                   </div>
-                  <div className="col-span-1 flex items-center justify-end">
+                  <div className="col-span-1 flex items-end justify-end pb-2">
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
