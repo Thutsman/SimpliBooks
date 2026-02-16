@@ -116,7 +116,7 @@ const Invoices = () => {
 
           {/* Actions Dropdown */}
           {showActionsId === row.id && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
               {row.status === 'draft' && (
                 <button
                   onClick={() => handleStatusChange(row.id, 'sent')}
@@ -135,6 +135,9 @@ const Invoices = () => {
                   Mark as Paid
                 </button>
               )}
+              <p className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100 mt-1 pt-2">
+                Stock levels update when you mark as Sent or Paid.
+              </p>
               <button
                 onClick={() => {
                   setSelectedInvoice(row)

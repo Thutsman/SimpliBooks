@@ -518,6 +518,11 @@ const InvoiceDetail = () => {
                 <span className="text-sm text-amber-600 font-medium">Line items locked (invoice already sent)</span>
               )}
             </div>
+            {!itemsLocked && items.some((i) => i.product_id) && (
+              <p className="text-sm text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                Stock levels for tracked products will update when you mark this invoice as <strong>Sent</strong> or <strong>Paid</strong> from the Invoices list.
+              </p>
+            )}
 
             <div className="space-y-4">
               {items.map((item, index) => (
