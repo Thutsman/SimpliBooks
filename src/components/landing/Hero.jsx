@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Play, CheckCircle } from 'lucide-react'
+import { ArrowRight, Play, CheckCircle, X } from 'lucide-react'
 import Button from '../ui/Button'
 
 const Hero = () => {
+  const [showDemo, setShowDemo] = useState(false)
+
   const benefits = [
     'Tax Compliant (SA, BW, ZW)',
     'Integrated Payroll',
@@ -52,7 +55,7 @@ const Hero = () => {
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
-            <Button variant="outline" size="lg" className="w-full sm:w-auto">
+            <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => setShowDemo(true)}>
               <Play className="w-5 h-5 mr-2" />
               Watch Demo
             </Button>
@@ -95,6 +98,31 @@ const Hero = () => {
           </div>
         </div>
       </div>
+      {/* Demo Video Modal */}
+      {showDemo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setShowDemo(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl rounded-xl overflow-hidden shadow-2xl bg-black"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowDemo(false)}
+              className="absolute top-3 right-3 z-10 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <video
+              src="/demo.mp4"
+              controls
+              autoPlay
+              className="w-full h-auto"
+            />
+          </div>
+        </div>
+      )}
     </section>
   )
 }
