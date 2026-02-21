@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { BookOpen, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { BookOpen, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { resendVerificationEmail } from '../lib/supabase'
 import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -11,6 +12,9 @@ const Login = () => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [unconfirmed, setUnconfirmed] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resent, setResent] = useState(false)
 
   const { signIn, user } = useAuth()
   const navigate = useNavigate()
@@ -29,15 +33,32 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setUnconfirmed(false)
+    setResent(false)
 
     const { error } = await signIn(email, password)
 
     if (error) {
-      toast.error(error.message)
+      if (error.message?.toLowerCase().includes('email not confirmed')) {
+        setUnconfirmed(true)
+      } else {
+        toast.error(error.message)
+      }
       setLoading(false)
     } else {
       toast.success('Welcome back!')
       navigate(from, { replace: true })
+    }
+  }
+
+  const handleResend = async () => {
+    setResending(true)
+    const { error } = await resendVerificationEmail(email)
+    setResending(false)
+    if (error) {
+      toast.error(error.message)
+    } else {
+      setResent(true)
     }
   }
 
@@ -116,6 +137,28 @@ const Login = () => {
                 Forgot password?
               </Link>
             </div>
+
+            {unconfirmed && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
+                <p className="text-amber-800 font-medium mb-1">Email not confirmed</p>
+                {resent ? (
+                  <p className="text-green-700">Confirmation email sent — check your inbox.</p>
+                ) : (
+                  <p className="text-amber-700">
+                    Please verify your email before signing in.{' '}
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resending}
+                      className="font-medium underline inline-flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {resending && <Loader2 className="w-3 h-3 animate-spin" />}
+                      {resending ? 'Sending…' : 'Resend confirmation email'}
+                    </button>
+                  </p>
+                )}
+              </div>
+            )}
 
             <Button type="submit" className="w-full" loading={loading}>
               Sign In

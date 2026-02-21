@@ -13,6 +13,7 @@ const Signup = () => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const { signUp, user } = useAuth()
   const navigate = useNavigate()
@@ -41,9 +42,34 @@ const Signup = () => {
       toast.error(error.message)
       setLoading(false)
     } else {
-      toast.success('Account created successfully!')
-      navigate('/dashboard')
+      setSubmitted(true)
     }
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 bg-gray-50">
+        <div className="w-full max-w-md text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Mail className="w-8 h-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
+          <p className="text-gray-600 mb-2">
+            We sent a confirmation link to
+          </p>
+          <p className="font-semibold text-gray-900 mb-6">{email}</p>
+          <p className="text-sm text-gray-500 mb-8">
+            Click the link in the email to activate your account, then come back to sign in.
+          </p>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center px-6 py-2.5 bg-primary-900 text-white rounded-lg font-medium hover:bg-primary-800 transition-colors"
+          >
+            Go to sign in
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
