@@ -101,6 +101,14 @@ export const resetPassword = async (email) => {
   return { data, error }
 }
 
+export const resendVerificationEmail = async (email) => {
+  const { data, error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+  })
+  return { data, error }
+}
+
 export const updatePassword = async (password) => {
   const { data, error } = await supabase.auth.updateUser({
     password,

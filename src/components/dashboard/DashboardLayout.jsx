@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useAcceptPendingInvitations } from '../../hooks/useCompanyInvitations'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import EmailVerificationBanner from '../EmailVerificationBanner'
 
 const DashboardLayout = () => {
   const { isReady, companiesLoading, companiesError, companies } = useCompany()
@@ -135,6 +136,7 @@ const DashboardLayout = () => {
         `}
       >
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
+        <EmailVerificationBanner />
         <main className="p-4 lg:p-6">
           <Outlet />
         </main>

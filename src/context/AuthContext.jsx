@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase, signIn, signUp, signOut, signInWithGoogle, resetPassword, updatePassword } from '../lib/supabase'
+import { supabase, signIn, signUp, signOut, signInWithGoogle, resetPassword, updatePassword, resendVerificationEmail } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
@@ -66,10 +66,13 @@ export const AuthProvider = ({ children }) => {
     ensureProfile()
   }, [user?.id]) // Only run when user ID changes (login/signup), not on every reference change
 
+  const isEmailVerified = !!user?.email_confirmed_at
+
   const value = {
     user,
     session,
     loading,
+    isEmailVerified,
     signIn: async (email, password) => {
       const result = await signIn(email, password)
       return result
@@ -92,6 +95,10 @@ export const AuthProvider = ({ children }) => {
     },
     updatePassword: async (password) => {
       const result = await updatePassword(password)
+      return result
+    },
+    resendVerificationEmail: async (email) => {
+      const result = await resendVerificationEmail(email)
       return result
     },
   }
