@@ -9,13 +9,32 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // getSession() is required to initialize the Supabase client's internal
-    // session state so that authenticated database queries work properly.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    // getSession() initializes the Supabase client's internal session state.
+    // We then validate with getUser() (a server-side call) to handle cases
+    // where the user was deleted directly in Supabase — getSession() alone
+    // only reads from localStorage and won't detect a deleted user.
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session) {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error || !user) {
+          // User no longer exists on the server — clear the stale local session
+          await supabase.auth.signOut()
+          setSession(null)
+          setUser(null)
+        } else {
+          setSession(session)
+          setUser(user)
+        }
+      } else {
+        setSession(null)
+        setUser(null)
+      }
       setLoading(false)
-    })
+    }
+
+    initializeAuth()
 
     // Listen for auth changes (sign in, sign out, token refresh).
     // IMPORTANT: This callback must NOT be async and must NOT make Supabase
