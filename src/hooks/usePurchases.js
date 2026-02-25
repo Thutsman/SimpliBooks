@@ -30,7 +30,7 @@ export const usePurchases = (filters = {}) => {
     enabled: !!activeCompanyId,
   })
 
-  const purchaseQuery = (id) => useQuery({
+  const usePurchase = (id) => useQuery({
     queryKey: ['purchase', id],
     queryFn: async () => {
       const { data: purchase, error: purchaseError } = await supabase
@@ -150,15 +150,10 @@ export const usePurchases = (filters = {}) => {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }) => {
-      const updateData = { status }
       if (status === 'paid') {
-        const { data: purchase } = await supabase
-          .from('supplier_invoices')
-          .select('total')
-          .eq('id', id)
-          .single()
-        updateData.amount_paid = purchase.total
+        throw new Error('Use Record Payment to record supplier payments (partial payments supported).')
       }
+      const updateData = { status }
 
       const { data, error } = await supabase
         .from('supplier_invoices')
@@ -181,7 +176,7 @@ export const usePurchases = (filters = {}) => {
     purchases: purchasesQuery.data || [],
     isLoading: purchasesQuery.isLoading,
     error: purchasesQuery.error,
-    usePurchase: purchaseQuery,
+    usePurchase,
     createPurchase: createPurchase.mutateAsync,
     updatePurchase: updatePurchase.mutateAsync,
     deletePurchase: deletePurchase.mutateAsync,

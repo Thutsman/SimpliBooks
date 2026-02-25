@@ -30,7 +30,7 @@ export const useQuotations = (filters = {}) => {
     enabled: !!activeCompanyId,
   })
 
-  const quotationQuery = (id) => useQuery({
+  const useQuotation = (id) => useQuery({
     queryKey: ['quotation', id],
     queryFn: async () => {
       const { data: quotation, error: quotationError } = await supabase
@@ -327,7 +327,7 @@ export const useQuotations = (filters = {}) => {
     quotations: quotationsQuery.data || [],
     isLoading: quotationsQuery.isLoading,
     error: quotationsQuery.error,
-    useQuotation: quotationQuery,
+    useQuotation,
     getNextQuotationNumber,
     createQuotation: createQuotation.mutateAsync,
     updateQuotation: updateQuotation.mutateAsync,

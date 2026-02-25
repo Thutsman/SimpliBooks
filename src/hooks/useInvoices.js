@@ -33,7 +33,7 @@ export const useInvoices = (filters = {}) => {
     enabled: !!activeCompanyId,
   })
 
-  const invoiceQuery = (id) => useQuery({
+  const useInvoice = (id) => useQuery({
     queryKey: ['invoice', id],
     queryFn: async () => {
       const { data: invoice, error: invoiceError } = await supabase
@@ -209,15 +209,10 @@ export const useInvoices = (filters = {}) => {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }) => {
-      const updateData = { status }
       if (status === 'paid') {
-        const { data: invoice } = await supabase
-          .from('invoices')
-          .select('total')
-          .eq('id', id)
-          .single()
-        updateData.amount_paid = invoice.total
+        throw new Error('Use Receive Payment to record payments (partial payments supported).')
       }
+      const updateData = { status }
 
       const { data, error } = await supabase
         .from('invoices')
@@ -241,7 +236,7 @@ export const useInvoices = (filters = {}) => {
     invoices: invoicesQuery.data || [],
     isLoading: invoicesQuery.isLoading,
     error: invoicesQuery.error,
-    useInvoice: invoiceQuery,
+    useInvoice,
     getNextInvoiceNumber,
     createInvoice: createInvoice.mutateAsync,
     updateInvoice: updateInvoice.mutateAsync,

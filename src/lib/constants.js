@@ -149,6 +149,7 @@ export const ACCOUNT_SUB_TYPES = {
 export const INVOICE_STATUSES = [
   { value: 'draft', label: 'Draft', color: 'gray' },
   { value: 'sent', label: 'Sent', color: 'blue' },
+  { value: 'part_paid', label: 'Part Paid', color: 'yellow' },
   { value: 'paid', label: 'Paid', color: 'green' },
   { value: 'overdue', label: 'Overdue', color: 'red' },
   { value: 'cancelled', label: 'Cancelled', color: 'gray' },
@@ -157,6 +158,7 @@ export const INVOICE_STATUSES = [
 // Purchase Invoice Statuses
 export const PURCHASE_STATUSES = [
   { value: 'unpaid', label: 'Unpaid', color: 'yellow' },
+  { value: 'part_paid', label: 'Part Paid', color: 'yellow' },
   { value: 'paid', label: 'Paid', color: 'green' },
   { value: 'overdue', label: 'Overdue', color: 'red' },
   { value: 'cancelled', label: 'Cancelled', color: 'gray' },
@@ -233,6 +235,7 @@ export const getStatusColor = (status) => {
     draft: 'bg-gray-100 text-gray-700',
     sent: 'bg-blue-100 text-blue-700',
     paid: 'bg-accent-100 text-accent-700',
+    part_paid: 'bg-yellow-100 text-yellow-700',
     overdue: 'bg-red-100 text-red-700',
     cancelled: 'bg-gray-100 text-gray-500',
     processed: 'bg-blue-100 text-blue-700',

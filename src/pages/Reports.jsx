@@ -14,6 +14,7 @@ import {
   useCustomerStatement,
   useSupplierStatement,
   useUnreconciledItemsReport,
+  useIntegrityChecks,
 } from '../hooks/useReports'
 import { useCompany } from '../context/CompanyContext'
 import { useClients } from '../hooks/useClients'
@@ -98,6 +99,11 @@ const Reports = () => {
     dateRange.end
   )
   const { data: unreconciledItems, isLoading: unreconciledLoading } = useUnreconciledItemsReport(dateRange.end)
+  const { data: integrityChecks, isLoading: integrityLoading } = useIntegrityChecks(
+    dateRange.start,
+    dateRange.end,
+    activeReport === 'integrity-checks'
+  )
 
   const handleExportExcel = () => {
     if (activeReport === 'trial-balance' && trialBalance) {
@@ -447,6 +453,7 @@ const Reports = () => {
     { id: 'customer-statement', name: 'Customer Statement', icon: Users },
     { id: 'supplier-statement', name: 'Supplier Statement', icon: Truck },
     { id: 'unreconciled-items', name: 'Unreconciled Items', icon: AlertCircle },
+    { id: 'integrity-checks', name: 'Integrity Checks', icon: AlertCircle },
   ]
 
   const periodOptions = [
@@ -643,13 +650,13 @@ const Reports = () => {
                       <span className="font-mono">{formatCurrency(vatReport?.totalSales || 0, activeCompany?.currency)}</span>
                     </div>
                     <div className="flex justify-between font-medium">
-                      <span className="text-gray-900">Output VAT (15%)</span>
+                      <span className="text-gray-900">Output VAT</span>
                       <span className="font-mono text-red-600">
                         {formatCurrency(vatReport?.outputVAT || 0, activeCompany?.currency)}
                       </span>
                     </div>
                     <div className="text-sm text-gray-500">
-                      From {vatReport?.invoiceCount || 0} invoices
+                      From {vatReport?.vatLineCount || 0} VAT journal line(s)
                     </div>
                   </div>
                 </div>
@@ -663,13 +670,13 @@ const Reports = () => {
                       <span className="font-mono">{formatCurrency(vatReport?.totalPurchases || 0, activeCompany?.currency)}</span>
                     </div>
                     <div className="flex justify-between font-medium">
-                      <span className="text-gray-900">Input VAT (15%)</span>
+                      <span className="text-gray-900">Input VAT</span>
                       <span className="font-mono text-green-600">
                         {formatCurrency(vatReport?.inputVAT || 0, activeCompany?.currency)}
                       </span>
                     </div>
                     <div className="text-sm text-gray-500">
-                      From {vatReport?.purchaseCount || 0} purchases
+                      From {vatReport?.vatLineCount || 0} VAT journal line(s)
                     </div>
                   </div>
                 </div>
@@ -1623,6 +1630,102 @@ const Reports = () => {
                     <p>All items are reconciled!</p>
                   </div>
                 )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Integrity Checks */}
+        {activeReport === 'integrity-checks' && (
+          <>
+            {integrityLoading ? (
+              <div className="animate-pulse space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-12 bg-gray-100 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <p className="text-sm text-gray-500">
+                  As of {formatDate(integrityChecks?.asOfDate)}. These checks help confirm subledgers reconcile to control accounts.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p className="text-sm text-gray-600">Accounts Receivable (1100)</p>
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">GL balance</span>
+                        <span className="font-mono">{formatCurrency(integrityChecks?.ar?.gl ?? 0, activeCompany?.currency)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Subledger (open invoices)</span>
+                        <span className="font-mono">{formatCurrency(integrityChecks?.ar?.subledger ?? 0, activeCompany?.currency)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                        <span>Difference</span>
+                        <span className={`font-mono ${Math.abs(integrityChecks?.ar?.difference ?? 0) <= 0.01 ? 'text-green-700' : 'text-red-700'}`}>
+                          {formatCurrency(integrityChecks?.ar?.difference ?? 0, activeCompany?.currency)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p className="text-sm text-gray-600">Accounts Payable (2000)</p>
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">GL balance</span>
+                        <span className="font-mono">{formatCurrency(integrityChecks?.ap?.gl ?? 0, activeCompany?.currency)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Subledger (open purchases)</span>
+                        <span className="font-mono">{formatCurrency(integrityChecks?.ap?.subledger ?? 0, activeCompany?.currency)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                        <span>Difference</span>
+                        <span className={`font-mono ${Math.abs(integrityChecks?.ap?.difference ?? 0) <= 0.01 ? 'text-green-700' : 'text-red-700'}`}>
+                          {formatCurrency(integrityChecks?.ap?.difference ?? 0, activeCompany?.currency)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p className="text-sm text-gray-600">VAT (period movement)</p>
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Output VAT</span>
+                        <span className="font-mono">{formatCurrency(integrityChecks?.vat?.period?.outputVAT ?? 0, activeCompany?.currency)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Input VAT</span>
+                        <span className="font-mono">{formatCurrency(integrityChecks?.vat?.period?.inputVAT ?? 0, activeCompany?.currency)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                        <span>Net VAT</span>
+                        <span className="font-mono">{formatCurrency(integrityChecks?.vat?.period?.netVAT ?? 0, activeCompany?.currency)}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Based on {integrityChecks?.vat?.period?.lineCount ?? 0} VAT journal line(s) in the period.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">VAT control account balances (as of date)</h4>
+                  <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div className="flex justify-between bg-gray-50 rounded p-3">
+                      <span className="text-gray-600">VAT Payable (2100)</span>
+                      <span className="font-mono">{formatCurrency(integrityChecks?.vat?.balances?.vatPayableGL ?? 0, activeCompany?.currency)}</span>
+                    </div>
+                    <div className="flex justify-between bg-gray-50 rounded p-3">
+                      <span className="text-gray-600">VAT Input (1150)</span>
+                      <span className="font-mono">{formatCurrency(integrityChecks?.vat?.balances?.vatInputGL ?? 0, activeCompany?.currency)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </>

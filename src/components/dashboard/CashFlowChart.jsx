@@ -30,29 +30,28 @@ const CashFlowChart = () => {
         })
       }
 
-      // Fetch invoices (income)
-      const { data: invoices } = await supabase
-        .from('invoices')
-        .select('total, issue_date')
+      // Cash flow chart should be based on payments (supports partial payments).
+      const { data: invoicePayments } = await supabase
+        .from('invoice_payments')
+        .select('amount, payment_date')
         .eq('company_id', activeCompanyId)
-        .eq('status', 'paid')
 
-      // Fetch purchases (expenses)
-      const { data: purchases } = await supabase
-        .from('supplier_invoices')
-        .select('total, issue_date')
+      const { data: supplierPayments } = await supabase
+        .from('supplier_payments')
+        .select('amount, payment_date')
         .eq('company_id', activeCompanyId)
-        .eq('status', 'paid')
 
       // Aggregate by month
       return months.map(({ month, start, end }) => {
-        const monthIncome = (invoices || [])
-          .filter((inv) => inv.issue_date >= start.split('T')[0] && inv.issue_date <= end.split('T')[0])
-          .reduce((sum, inv) => sum + Number(inv.total), 0)
+        const startDate = start.split('T')[0]
+        const endDate = end.split('T')[0]
+        const monthIncome = (invoicePayments || [])
+          .filter((p) => p.payment_date >= startDate && p.payment_date <= endDate)
+          .reduce((sum, p) => sum + Number(p.amount || 0), 0)
 
-        const monthExpenses = (purchases || [])
-          .filter((pur) => pur.issue_date >= start.split('T')[0] && pur.issue_date <= end.split('T')[0])
-          .reduce((sum, pur) => sum + Number(pur.total), 0)
+        const monthExpenses = (supplierPayments || [])
+          .filter((p) => p.payment_date >= startDate && p.payment_date <= endDate)
+          .reduce((sum, p) => sum + Number(p.amount || 0), 0)
 
         return {
           month,

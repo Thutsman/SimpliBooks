@@ -17,26 +17,36 @@ const Dashboard = () => {
       // Get invoices
       const { data: invoices } = await supabase
         .from('invoices')
-        .select('total, status')
+        .select('total, amount_paid, status, issue_date')
         .eq('company_id', activeCompanyId)
 
       // Get purchases
       const { data: purchases } = await supabase
         .from('supplier_invoices')
-        .select('total, status')
+        .select('total, amount_paid, status, issue_date')
         .eq('company_id', activeCompanyId)
 
-      const totalRevenue = (invoices || [])
-        .filter((i) => i.status === 'paid')
-        .reduce((sum, i) => sum + Number(i.total), 0)
+      // Cash received/paid is driven by recorded payments (supports partial payments).
+      const { data: invoicePayments } = await supabase
+        .from('invoice_payments')
+        .select('amount')
+        .eq('company_id', activeCompanyId)
 
-      const totalExpenses = (purchases || [])
-        .filter((p) => p.status === 'paid')
-        .reduce((sum, p) => sum + Number(p.total), 0)
+      const { data: supplierPayments } = await supabase
+        .from('supplier_payments')
+        .select('amount')
+        .eq('company_id', activeCompanyId)
+
+      const totalRevenue = (invoicePayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0)
+
+      const totalExpenses = (supplierPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0)
 
       const outstandingReceivables = (invoices || [])
-        .filter((i) => ['sent', 'overdue'].includes(i.status))
-        .reduce((sum, i) => sum + Number(i.total), 0)
+        .filter((i) => ['sent', 'overdue', 'part_paid'].includes(i.status))
+        .reduce((sum, i) => {
+          const outstanding = Number(i.total || 0) - Number(i.amount_paid || 0)
+          return sum + (outstanding > 0 ? outstanding : 0)
+        }, 0)
 
       const overdueInvoices = (invoices || []).filter(
         (i) => i.status === 'overdue'
@@ -121,25 +131,29 @@ const Dashboard = () => {
         <StatCard
           title="Total Revenue"
           value={formatCurrency(stats?.totalRevenue || 0, activeCompany?.currency)}
-          description="Paid invoices"
+          description="Payments received"
+          infoText="Sum of customer payments recorded in invoice_payments. Includes partial allocations. This is cash received, not total invoiced sales."
           icon={DollarSign}
         />
         <StatCard
           title="Total Expenses"
           value={formatCurrency(stats?.totalExpenses || 0, activeCompany?.currency)}
-          description="Paid purchases"
+          description="Payments made"
+          infoText="Sum of supplier payments recorded in supplier_payments. Includes partial allocations. This is cash paid, not total purchase invoices."
           icon={ShoppingCart}
         />
         <StatCard
           title="Outstanding"
           value={formatCurrency(stats?.outstandingReceivables || 0, activeCompany?.currency)}
           description="Unpaid invoices"
+          infoText="Sum of (invoice total - amount_paid) for invoices in sent, part_paid, and overdue status. Represents current receivables still due."
           icon={FileText}
         />
         <StatCard
           title="Overdue"
           value={stats?.overdueInvoices || 0}
           description="Invoices need attention"
+          infoText="Count of invoices currently in overdue status."
           icon={AlertCircle}
           changeType={stats?.overdueInvoices > 0 ? 'negative' : 'neutral'}
         />

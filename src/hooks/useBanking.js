@@ -166,7 +166,7 @@ export const useBanking = (filters = {}) => {
       .from('invoices')
       .select('id, invoice_number, total, amount_paid, issue_date, due_date, client:clients(name)')
       .eq('company_id', activeCompanyId)
-      .in('status', ['sent', 'overdue'])
+      .in('status', ['sent', 'overdue', 'part_paid'])
       .gte('total', amount - tolerance)
       .lte('total', amount + tolerance)
 
@@ -191,7 +191,7 @@ export const useBanking = (filters = {}) => {
       .from('supplier_invoices')
       .select('id, invoice_number, total, amount_paid, issue_date, due_date, supplier:suppliers(name)')
       .eq('company_id', activeCompanyId)
-      .in('status', ['unpaid', 'overdue'])
+      .in('status', ['unpaid', 'overdue', 'part_paid'])
       .gte('total', amount - tolerance)
       .lte('total', amount + tolerance)
 

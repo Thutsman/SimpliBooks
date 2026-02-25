@@ -126,17 +126,21 @@ const Invoices = () => {
                   Mark as Sent
                 </button>
               )}
-              {['draft', 'sent', 'overdue'].includes(row.status) && (
+              {['sent', 'overdue', 'part_paid'].includes(row.status) &&
+                (Number(row.total || 0) - Number(row.amount_paid || 0) > 0.005) && (
                 <button
-                  onClick={() => handleStatusChange(row.id, 'paid')}
+                  onClick={() => {
+                    setShowActionsId(null)
+                    navigate(`/dashboard/payments/receive?invoiceId=${row.id}`)
+                  }}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-green-600 hover:bg-gray-50 w-full"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  Mark as Paid
+                  Receive Payment
                 </button>
               )}
               <p className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100 mt-1 pt-2">
-                Stock levels update when you mark as Sent or Paid.
+                Stock levels update when you mark as Sent.
               </p>
               <button
                 onClick={() => {
@@ -165,12 +169,22 @@ const Invoices = () => {
           <p className="text-gray-600">Create and manage customer invoices</p>
         </div>
         {canEditTransactions && (
-          <Link to="/dashboard/invoices/new" className="w-full sm:w-auto">
-            <Button className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              New Invoice
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => navigate('/dashboard/payments/receive')}
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Receive Payment
             </Button>
-          </Link>
+            <Link to="/dashboard/invoices/new" className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto">
+                <Plus className="w-4 h-4 mr-2" />
+                New Invoice
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 

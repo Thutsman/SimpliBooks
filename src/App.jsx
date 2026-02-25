@@ -22,6 +22,8 @@ import Invoices from './pages/Invoices'
 import InvoiceDetail from './pages/InvoiceDetail'
 import Purchases from './pages/Purchases'
 import PurchaseDetail from './pages/PurchaseDetail'
+import ReceivePayment from './pages/ReceivePayment'
+import RecordSupplierPayment from './pages/RecordSupplierPayment'
 import Accounts from './pages/Accounts'
 import Banking from './pages/Banking'
 import Payroll from './pages/Payroll'
@@ -81,6 +83,8 @@ function App() {
             <Route path="purchases" element={<Purchases />} />
             <Route path="purchases/new" element={<PurchaseDetail />} />
             <Route path="purchases/:id" element={<PurchaseDetail />} />
+            <Route path="payments/receive" element={<ReceivePayment />} />
+            <Route path="payments/supplier" element={<RecordSupplierPayment />} />
             <Route path="accounts" element={<Accounts />} />
             <Route path="banking" element={<Banking />} />
             <Route path="payroll" element={<Payroll />} />

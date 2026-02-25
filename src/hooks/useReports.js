@@ -422,6 +422,7 @@ export const useARAging = (asOfDate) => {
   return useQuery({
     queryKey: ['ar-aging', activeCompanyId, asOfDate],
     queryFn: async () => {
+      const asOfStr = asOfDate || new Date().toISOString().split('T')[0]
       const { data: invoices, error } = await supabase
         .from('invoices')
         .select(`
@@ -429,12 +430,12 @@ export const useARAging = (asOfDate) => {
           client:clients(id, name, email)
         `)
         .eq('company_id', activeCompanyId)
-        .in('status', ['sent', 'overdue'])
-        .lte('due_date', asOfDate || new Date().toISOString().split('T')[0])
+        .in('status', ['sent', 'overdue', 'part_paid'])
+        .lte('issue_date', asOfStr)
 
       if (error) throw error
 
-      const asOf = asOfDate ? new Date(asOfDate) : new Date()
+      const asOf = new Date(asOfStr)
       const bucket = (dueDate) => {
         const d = new Date(dueDate)
         const days = Math.floor((asOf - d) / (24 * 60 * 60 * 1000))
@@ -499,6 +500,7 @@ export const useAPAging = (asOfDate) => {
   return useQuery({
     queryKey: ['ap-aging', activeCompanyId, asOfDate],
     queryFn: async () => {
+      const asOfStr = asOfDate || new Date().toISOString().split('T')[0]
       const { data: purchases, error } = await supabase
         .from('supplier_invoices')
         .select(`
@@ -506,12 +508,12 @@ export const useAPAging = (asOfDate) => {
           supplier:suppliers(id, name, email)
         `)
         .eq('company_id', activeCompanyId)
-        .in('status', ['unpaid', 'overdue'])
-        .lte('due_date', asOfDate || new Date().toISOString().split('T')[0])
+        .in('status', ['unpaid', 'overdue', 'part_paid'])
+        .lte('issue_date', asOfStr)
 
       if (error) throw error
 
-      const asOf = asOfDate ? new Date(asOfDate) : new Date()
+      const asOf = new Date(asOfStr)
       const bucket = (dueDate) => {
         const d = new Date(dueDate)
         const days = Math.floor((asOf - d) / (24 * 60 * 60 * 1000))
@@ -573,49 +575,80 @@ export const useVATReport = (startDate, endDate) => {
   return useQuery({
     queryKey: ['vat-report', activeCompanyId, startDate, endDate],
     queryFn: async () => {
-      // Get invoices (output VAT)
-      let invoiceQuery = supabase
-        .from('invoices')
-        .select('total, vat_amount, status, issue_date')
-        .eq('company_id', activeCompanyId)
-        .in('status', ['sent', 'paid'])
+      // VAT is computed from posted journal lines for VAT control accounts:
+      // - Output VAT: VAT Payable (2100) credits - debits within period
+      // - Input VAT: VAT Input (1150) debits - credits within period
+      let vatLinesQuery = supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit, credit,
+          account:accounts!inner(code, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .in('account.code', ['2100', '1150'])
 
-      if (startDate) invoiceQuery = invoiceQuery.gte('issue_date', startDate)
-      if (endDate) invoiceQuery = invoiceQuery.lte('issue_date', endDate)
+      if (startDate) vatLinesQuery = vatLinesQuery.gte('journal_entry.entry_date', startDate)
+      if (endDate) vatLinesQuery = vatLinesQuery.lte('journal_entry.entry_date', endDate)
 
-      const { data: invoices } = await invoiceQuery
+      const { data: vatLines, error: vatErr } = await vatLinesQuery
+      if (vatErr) throw vatErr
 
-      // Get purchases (input VAT)
-      let purchaseQuery = supabase
-        .from('supplier_invoices')
-        .select('total, vat_amount, status, issue_date')
-        .eq('company_id', activeCompanyId)
-        .in('status', ['unpaid', 'paid'])
+      let outputVAT = 0
+      let inputVAT = 0
+      ;(vatLines || []).forEach((l) => {
+        const code = l.account?.code
+        const debit = Number(l.debit) || 0
+        const credit = Number(l.credit) || 0
+        if (code === '2100') outputVAT += credit - debit
+        if (code === '1150') inputVAT += debit - credit
+      })
 
-      if (startDate) purchaseQuery = purchaseQuery.gte('issue_date', startDate)
-      if (endDate) purchaseQuery = purchaseQuery.lte('issue_date', endDate)
+      // Sales (ex VAT): posted invoice income lines within period
+      let salesQuery = supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit, credit,
+          account:accounts!inner(type, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id, entry_type)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .eq('journal_entry.entry_type', 'invoice')
+        .eq('account.type', 'income')
 
-      const { data: purchases } = await purchaseQuery
+      if (startDate) salesQuery = salesQuery.gte('journal_entry.entry_date', startDate)
+      if (endDate) salesQuery = salesQuery.lte('journal_entry.entry_date', endDate)
 
-      const outputVAT = (invoices || []).reduce(
-        (sum, inv) => sum + Number(inv.vat_amount || 0),
-        0
-      )
+      const { data: salesLines, error: salesErr } = await salesQuery
+      if (salesErr) throw salesErr
 
-      const inputVAT = (purchases || []).reduce(
-        (sum, pur) => sum + Number(pur.vat_amount || 0),
-        0
-      )
+      const totalSales = (salesLines || []).reduce((sum, l) => {
+        return sum + ((Number(l.credit) || 0) - (Number(l.debit) || 0))
+      }, 0)
 
-      const totalSales = (invoices || []).reduce(
-        (sum, inv) => sum + Number(inv.total || 0) - Number(inv.vat_amount || 0),
-        0
-      )
+      // Purchases (ex VAT): posted purchase debit lines excluding VAT input within period
+      let purchaseLinesQuery = supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit,
+          account:accounts!inner(code, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id, entry_type)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .eq('journal_entry.entry_type', 'purchase')
+        .gt('debit', 0)
+        .neq('account.code', '1150')
 
-      const totalPurchases = (purchases || []).reduce(
-        (sum, pur) => sum + Number(pur.total || 0) - Number(pur.vat_amount || 0),
-        0
-      )
+      if (startDate) purchaseLinesQuery = purchaseLinesQuery.gte('journal_entry.entry_date', startDate)
+      if (endDate) purchaseLinesQuery = purchaseLinesQuery.lte('journal_entry.entry_date', endDate)
+
+      const { data: purchaseLines, error: purErr } = await purchaseLinesQuery
+      if (purErr) throw purErr
+
+      const totalPurchases = (purchaseLines || []).reduce((sum, l) => sum + (Number(l.debit) || 0), 0)
 
       return {
         totalSales,
@@ -623,8 +656,7 @@ export const useVATReport = (startDate, endDate) => {
         outputVAT,
         inputVAT,
         netVAT: outputVAT - inputVAT,
-        invoiceCount: (invoices || []).length,
-        purchaseCount: (purchases || []).length,
+        vatLineCount: (vatLines || []).length,
       }
     },
     enabled: !!activeCompanyId,
@@ -639,29 +671,71 @@ export const useVAT201Report = (startDate, endDate) => {
   return useQuery({
     queryKey: ['vat201-report', activeCompanyId, startDate, endDate],
     queryFn: async () => {
-      let invoiceQuery = supabase
-        .from('invoices')
-        .select('total, vat_amount, issue_date')
-        .eq('company_id', activeCompanyId)
-        .in('status', ['sent', 'paid'])
-      if (startDate) invoiceQuery = invoiceQuery.gte('issue_date', startDate)
-      if (endDate) invoiceQuery = invoiceQuery.lte('issue_date', endDate)
-      const { data: invoices } = await invoiceQuery
+      // Use the same control-account logic as the VAT Report
+      let vatLinesQuery = supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit, credit,
+          account:accounts!inner(code, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .in('account.code', ['2100', '1150'])
 
-      let purchaseQuery = supabase
-        .from('supplier_invoices')
-        .select('total, vat_amount, issue_date')
-        .eq('company_id', activeCompanyId)
-        .in('status', ['unpaid', 'paid'])
-      if (startDate) purchaseQuery = purchaseQuery.gte('issue_date', startDate)
-      if (endDate) purchaseQuery = purchaseQuery.lte('issue_date', endDate)
-      const { data: purchases } = await purchaseQuery
+      if (startDate) vatLinesQuery = vatLinesQuery.gte('journal_entry.entry_date', startDate)
+      if (endDate) vatLinesQuery = vatLinesQuery.lte('journal_entry.entry_date', endDate)
 
-      const outputVAT = (invoices || []).reduce((s, i) => s + Number(i.vat_amount || 0), 0)
-      const inputVAT = (purchases || []).reduce((s, p) => s + Number(p.vat_amount || 0), 0)
-      const totalSales = (invoices || []).reduce((s, i) => s + Number(i.total || 0) - Number(i.vat_amount || 0), 0)
-      const totalPurchases = (purchases || []).reduce((s, p) => s + Number(p.total || 0) - Number(p.vat_amount || 0), 0)
+      const { data: vatLines, error: vatErr } = await vatLinesQuery
+      if (vatErr) throw vatErr
+
+      let outputVAT = 0
+      let inputVAT = 0
+      ;(vatLines || []).forEach((l) => {
+        const code = l.account?.code
+        const debit = Number(l.debit) || 0
+        const credit = Number(l.credit) || 0
+        if (code === '2100') outputVAT += credit - debit
+        if (code === '1150') inputVAT += debit - credit
+      })
       const netVAT = outputVAT - inputVAT
+
+      // Sales/purchases ex VAT for informational totals
+      let salesQuery = supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit, credit,
+          account:accounts!inner(type, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id, entry_type)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .eq('journal_entry.entry_type', 'invoice')
+        .eq('account.type', 'income')
+      if (startDate) salesQuery = salesQuery.gte('journal_entry.entry_date', startDate)
+      if (endDate) salesQuery = salesQuery.lte('journal_entry.entry_date', endDate)
+      const { data: salesLines, error: salesErr } = await salesQuery
+      if (salesErr) throw salesErr
+      const totalSales = (salesLines || []).reduce((sum, l) => sum + ((Number(l.credit) || 0) - (Number(l.debit) || 0)), 0)
+
+      let purchaseLinesQuery = supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit,
+          account:accounts!inner(code, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id, entry_type)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .eq('journal_entry.entry_type', 'purchase')
+        .gt('debit', 0)
+        .neq('account.code', '1150')
+      if (startDate) purchaseLinesQuery = purchaseLinesQuery.gte('journal_entry.entry_date', startDate)
+      if (endDate) purchaseLinesQuery = purchaseLinesQuery.lte('journal_entry.entry_date', endDate)
+      const { data: purchaseLines, error: purErr } = await purchaseLinesQuery
+      if (purErr) throw purErr
+      const totalPurchases = (purchaseLines || []).reduce((sum, l) => sum + (Number(l.debit) || 0), 0)
+
       return {
         box1OutputTax: outputVAT,
         box4InputTax: inputVAT,
@@ -673,8 +747,7 @@ export const useVAT201Report = (startDate, endDate) => {
         outputVAT,
         inputVAT,
         netVAT,
-        invoiceCount: (invoices || []).length,
-        purchaseCount: (purchases || []).length,
+        vatLineCount: (vatLines || []).length,
       }
     },
     enabled: !!activeCompanyId && !!startDate && !!endDate,
@@ -824,90 +897,72 @@ export const useCustomerStatement = (clientId, startDate, endDate) => {
         .single()
       if (!client) return { openingBalance: 0, transactions: [], closingBalance: 0, client: null }
 
-      const { data: linesBefore } = await supabase
+      // Build statement from AR control account activity so it reconciles to the GL.
+      const { data: arAccount, error: arErr } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('company_id', activeCompanyId)
+        .eq('code', '1100')
+        .eq('is_active', true)
+        .single()
+      if (arErr || !arAccount?.id) throw (arErr || new Error('AR control account (1100) not found'))
+
+      const { data: linesBefore, error: beforeErr } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit, credit,
-          account:accounts!inner(type, company_id),
           journal_entry:journal_entries!inner(entry_date, status, company_id)
         `)
         .eq('journal_entry.company_id', activeCompanyId)
         .eq('journal_entry.status', 'posted')
+        .eq('account_id', arAccount.id)
         .eq('client_id', clientId)
         .lt('journal_entry.entry_date', startDate)
+      if (beforeErr) throw beforeErr
+
       let openingBalance = 0
       ;(linesBefore || []).forEach((line) => {
-        if (line.account?.type === 'asset') openingBalance += (Number(line.debit) || 0) - (Number(line.credit) || 0)
+        openingBalance += (Number(line.debit) || 0) - (Number(line.credit) || 0)
       })
 
-      const { data: invoices } = await supabase
-        .from('invoices')
-        .select('id, invoice_number, issue_date, due_date, total, amount_paid, status')
-        .eq('company_id', activeCompanyId)
-        .eq('client_id', clientId)
-        .gte('issue_date', startDate)
-        .lte('issue_date', endDate)
-        .in('status', ['sent', 'paid'])
-        .order('issue_date', { ascending: true })
-
-      const { data: payments } = await supabase
-        .from('journal_entries')
+      const { data: lines, error: linesErr } = await supabase
+        .from('journal_entry_lines')
         .select(`
-          id, entry_date, entry_number, description, reference,
-          journal_entry_lines(debit, credit, account_id)
+          debit, credit, description,
+          journal_entry:journal_entries!inner(
+            entry_date, entry_number, entry_type, reference, description, status, company_id
+          )
         `)
-        .eq('company_id', activeCompanyId)
-        .eq('status', 'posted')
-        .eq('entry_type', 'invoice_payment')
-        .gte('entry_date', startDate)
-        .lte('entry_date', endDate)
-      const paymentEntryIds = (payments || []).map((p) => p.id)
-      const { data: paymentLines } = paymentEntryIds.length
-        ? await supabase
-          .from('journal_entry_lines')
-          .select('journal_entry_id, debit, credit, client_id')
-          .in('journal_entry_id', paymentEntryIds)
-          .eq('client_id', clientId)
-        : { data: [] }
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .eq('account_id', arAccount.id)
+        .eq('client_id', clientId)
+        .gte('journal_entry.entry_date', startDate)
+        .lte('journal_entry.entry_date', endDate)
+        .order('journal_entry(entry_date)', { ascending: true })
+      if (linesErr) throw linesErr
 
-      const transactions = []
-      ;(invoices || []).forEach((inv) => {
-        const amount = Number(inv.total) - Number(inv.amount_paid || 0)
-        if (Number(inv.total) > 0) {
-          transactions.push({
-            date: inv.issue_date,
-            type: 'invoice',
-            reference: inv.invoice_number,
-            description: `Invoice ${inv.invoice_number}`,
-            debit: Number(inv.total),
-            credit: 0,
-            balance: null,
-          })
-        }
-        if (Number(inv.amount_paid || 0) > 0) {
-          transactions.push({
-            date: inv.issue_date,
-            type: 'payment',
-            reference: inv.invoice_number,
-            description: `Payment`,
-            debit: 0,
-            credit: Number(inv.amount_paid),
-            balance: null,
-          })
-        }
-      })
-      transactions.sort((a, b) => new Date(a.date) - new Date(b.date))
+      const transactions = (lines || []).map((l) => ({
+        date: l.journal_entry?.entry_date,
+        type: l.journal_entry?.entry_type || 'journal',
+        reference: l.journal_entry?.reference || l.journal_entry?.entry_number,
+        description: l.description || l.journal_entry?.description || '',
+        debit: Number(l.debit) || 0,
+        credit: Number(l.credit) || 0,
+        balance: null,
+      }))
+
       let running = openingBalance
       transactions.forEach((t) => {
         running += (t.debit || 0) - (t.credit || 0)
         t.balance = running
       })
-      const closingBalance = running
+
       return {
         client,
         openingBalance,
         transactions,
-        closingBalance,
+        closingBalance: running,
       }
     },
     enabled: !!activeCompanyId && !!clientId && !!startDate && !!endDate,
@@ -931,74 +986,181 @@ export const useSupplierStatement = (supplierId, startDate, endDate) => {
         .single()
       if (!supplier) return { openingBalance: 0, transactions: [], closingBalance: 0, supplier: null }
 
-      const { data: linesBefore } = await supabase
+      // Build statement from AP control account activity so it reconciles to the GL.
+      const { data: apAccount, error: apErr } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('company_id', activeCompanyId)
+        .eq('code', '2000')
+        .eq('is_active', true)
+        .single()
+      if (apErr || !apAccount?.id) throw (apErr || new Error('AP control account (2000) not found'))
+
+      const { data: linesBefore, error: beforeErr } = await supabase
         .from('journal_entry_lines')
         .select(`
           debit, credit,
-          account:accounts!inner(type, company_id),
           journal_entry:journal_entries!inner(entry_date, status, company_id)
         `)
         .eq('journal_entry.company_id', activeCompanyId)
         .eq('journal_entry.status', 'posted')
+        .eq('account_id', apAccount.id)
         .eq('supplier_id', supplierId)
         .lt('journal_entry.entry_date', startDate)
+      if (beforeErr) throw beforeErr
+
       let openingBalance = 0
       ;(linesBefore || []).forEach((line) => {
-        if (line.account?.type === 'liability') openingBalance += (Number(line.credit) || 0) - (Number(line.debit) || 0)
+        openingBalance += (Number(line.credit) || 0) - (Number(line.debit) || 0)
       })
 
-      const { data: purchases } = await supabase
-        .from('supplier_invoices')
-        .select('id, invoice_number, issue_date, due_date, total, amount_paid, status')
-        .eq('company_id', activeCompanyId)
+      const { data: lines, error: linesErr } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit, credit, description,
+          journal_entry:journal_entries!inner(
+            entry_date, entry_number, entry_type, reference, description, status, company_id
+          )
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .eq('account_id', apAccount.id)
         .eq('supplier_id', supplierId)
-        .gte('issue_date', startDate)
-        .lte('issue_date', endDate)
-        .in('status', ['unpaid', 'paid'])
-        .order('issue_date', { ascending: true })
+        .gte('journal_entry.entry_date', startDate)
+        .lte('journal_entry.entry_date', endDate)
+        .order('journal_entry(entry_date)', { ascending: true })
+      if (linesErr) throw linesErr
 
-      const transactions = []
+      const transactions = (lines || []).map((l) => ({
+        date: l.journal_entry?.entry_date,
+        type: l.journal_entry?.entry_type || 'journal',
+        reference: l.journal_entry?.reference || l.journal_entry?.entry_number,
+        description: l.description || l.journal_entry?.description || '',
+        debit: Number(l.debit) || 0,
+        credit: Number(l.credit) || 0,
+        balance: null,
+      }))
+
       let running = openingBalance
-      ;(purchases || []).forEach((inv) => {
-        if (Number(inv.total) > 0) {
-          transactions.push({
-            date: inv.issue_date,
-            type: 'purchase',
-            reference: inv.invoice_number,
-            description: `Purchase ${inv.invoice_number}`,
-            debit: 0,
-            credit: Number(inv.total),
-            balance: null,
-          })
-          running += Number(inv.total)
-        }
-        if (Number(inv.amount_paid || 0) > 0) {
-          transactions.push({
-            date: inv.issue_date,
-            type: 'payment',
-            reference: inv.invoice_number,
-            description: `Payment`,
-            debit: Number(inv.amount_paid),
-            credit: 0,
-            balance: null,
-          })
-          running -= Number(inv.amount_paid)
-        }
-      })
-      transactions.sort((a, b) => new Date(a.date) - new Date(b.date))
-      let run = openingBalance
       transactions.forEach((t) => {
-        run += (t.credit || 0) - (t.debit || 0)
-        t.balance = run
+        running += (t.credit || 0) - (t.debit || 0)
+        t.balance = running
       })
+
       return {
         supplier,
         openingBalance,
         transactions,
-        closingBalance: run,
+        closingBalance: running,
       }
     },
     enabled: !!activeCompanyId && !!supplierId && !!startDate && !!endDate,
+  })
+}
+
+// ================================
+// INTEGRITY / RECONCILIATION CHECKS
+// ================================
+export const useIntegrityChecks = (startDate, endDate, enabled = true) => {
+  const { activeCompanyId } = useCompany()
+
+  return useQuery({
+    queryKey: ['integrity-checks', activeCompanyId, startDate, endDate],
+    queryFn: async () => {
+      const asOfDate = endDate || new Date().toISOString().split('T')[0]
+
+      // GL balances as-of date for control accounts
+      const { data: controlLines, error: controlErr } = await supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit, credit,
+          account:accounts!inner(code, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .lte('journal_entry.entry_date', asOfDate)
+        .in('account.code', ['1100', '2000', '2100', '1150'])
+      if (controlErr) throw controlErr
+
+      let arGL = 0 // debit - credit
+      let apGL = 0 // credit - debit
+      let vatPayableGL = 0 // credit - debit
+      let vatInputGL = 0 // debit - credit
+      ;(controlLines || []).forEach((l) => {
+        const code = l.account?.code
+        const d = Number(l.debit) || 0
+        const c = Number(l.credit) || 0
+        if (code === '1100') arGL += d - c
+        if (code === '2000') apGL += c - d
+        if (code === '2100') vatPayableGL += c - d
+        if (code === '1150') vatInputGL += d - c
+      })
+
+      // Subledger outstanding as-of date (based on operational docs)
+      const { data: openInvoices, error: invErr } = await supabase
+        .from('invoices')
+        .select('total, amount_paid, issue_date, status')
+        .eq('company_id', activeCompanyId)
+        .in('status', ['sent', 'overdue', 'part_paid'])
+        .lte('issue_date', asOfDate)
+      if (invErr) throw invErr
+      const arSubledger = (openInvoices || []).reduce((sum, inv) => {
+        const outstanding = (Number(inv.total) || 0) - (Number(inv.amount_paid) || 0)
+        return sum + (outstanding > 0 ? outstanding : 0)
+      }, 0)
+
+      const { data: openPurchases, error: purErr } = await supabase
+        .from('supplier_invoices')
+        .select('total, amount_paid, issue_date, status')
+        .eq('company_id', activeCompanyId)
+        .in('status', ['unpaid', 'overdue', 'part_paid'])
+        .lte('issue_date', asOfDate)
+      if (purErr) throw purErr
+      const apSubledger = (openPurchases || []).reduce((sum, inv) => {
+        const outstanding = (Number(inv.total) || 0) - (Number(inv.amount_paid) || 0)
+        return sum + (outstanding > 0 ? outstanding : 0)
+      }, 0)
+
+      // VAT period movement checks (invoice-date basis)
+      let vatLinesQuery = supabase
+        .from('journal_entry_lines')
+        .select(`
+          debit, credit,
+          account:accounts!inner(code, company_id),
+          journal_entry:journal_entries!inner(entry_date, status, company_id)
+        `)
+        .eq('journal_entry.company_id', activeCompanyId)
+        .eq('journal_entry.status', 'posted')
+        .in('account.code', ['2100', '1150'])
+
+      if (startDate) vatLinesQuery = vatLinesQuery.gte('journal_entry.entry_date', startDate)
+      if (endDate) vatLinesQuery = vatLinesQuery.lte('journal_entry.entry_date', endDate)
+
+      const { data: vatLines, error: vatErr } = await vatLinesQuery
+      if (vatErr) throw vatErr
+
+      let outputVAT = 0
+      let inputVAT = 0
+      ;(vatLines || []).forEach((l) => {
+        const code = l.account?.code
+        const d = Number(l.debit) || 0
+        const c = Number(l.credit) || 0
+        if (code === '2100') outputVAT += c - d
+        if (code === '1150') inputVAT += d - c
+      })
+
+      return {
+        asOfDate,
+        ar: { gl: arGL, subledger: arSubledger, difference: arGL - arSubledger },
+        ap: { gl: apGL, subledger: apSubledger, difference: apGL - apSubledger },
+        vat: {
+          period: { outputVAT, inputVAT, netVAT: outputVAT - inputVAT, lineCount: (vatLines || []).length },
+          balances: { vatPayableGL, vatInputGL },
+        },
+      }
+    },
+    enabled: !!activeCompanyId && !!endDate && !!enabled,
   })
 }
 
@@ -1032,7 +1194,7 @@ export const useUnreconciledItemsReport = (asOfDate) => {
           client:clients(id, name)
         `)
         .eq('company_id', activeCompanyId)
-        .in('status', ['sent', 'overdue'])
+        .in('status', ['sent', 'overdue', 'part_paid'])
         .lte('due_date', asOf)
 
       if (invError) throw invError
@@ -1045,7 +1207,7 @@ export const useUnreconciledItemsReport = (asOfDate) => {
           supplier:suppliers(id, name)
         `)
         .eq('company_id', activeCompanyId)
-        .in('status', ['unpaid', 'overdue'])
+        .in('status', ['unpaid', 'overdue', 'part_paid'])
         .lte('due_date', asOf)
 
       if (purError) throw purError

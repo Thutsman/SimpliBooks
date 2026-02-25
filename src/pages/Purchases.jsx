@@ -116,13 +116,17 @@ const Purchases = () => {
 
           {showActionsId === row.id && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-              {['unpaid', 'overdue'].includes(row.status) && (
+              {['unpaid', 'overdue', 'part_paid'].includes(row.status) &&
+                (Number(row.total || 0) - Number(row.amount_paid || 0) > 0.005) && (
                 <button
-                  onClick={() => handleStatusChange(row.id, 'paid')}
+                  onClick={() => {
+                    setShowActionsId(null)
+                    navigate(`/dashboard/payments/supplier?supplierInvoiceId=${row.id}`)
+                  }}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-green-600 hover:bg-gray-50 w-full"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  Mark as Paid
+                  Record Payment
                 </button>
               )}
               <button
@@ -151,12 +155,22 @@ const Purchases = () => {
           <p className="text-gray-600">Track supplier invoices and expenses</p>
         </div>
         {canEditTransactions && (
-          <Link to="/dashboard/purchases/new" className="w-full sm:w-auto">
-            <Button className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              New Purchase
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => navigate('/dashboard/payments/supplier')}
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Record Payment
             </Button>
-          </Link>
+            <Link to="/dashboard/purchases/new" className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto">
+                <Plus className="w-4 h-4 mr-2" />
+                New Purchase
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 

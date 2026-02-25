@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUp, ArrowDown, CircleHelp } from 'lucide-react'
 
 const StatCard = ({
   title,
@@ -7,6 +7,7 @@ const StatCard = ({
   changeType = 'neutral',
   icon: Icon,
   description,
+  infoText,
 }) => {
   const changeColors = {
     positive: 'text-accent-600 bg-accent-50',
@@ -18,7 +19,23 @@ const StatCard = ({
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-gray-500">{title}</p>
+            {infoText && (
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={`${title} calculation info`}
+                >
+                  <CircleHelp className="w-4 h-4" />
+                </button>
+                <div className="pointer-events-none absolute left-1/2 top-6 z-20 hidden w-72 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700 shadow-lg group-hover:block">
+                  {infoText}
+                </div>
+              </div>
+            )}
+          </div>
           <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
 
           {(change !== undefined || description) && (
