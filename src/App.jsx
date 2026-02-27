@@ -20,6 +20,7 @@ import Quotations from './pages/Quotations'
 import QuotationDetail from './pages/QuotationDetail'
 import Invoices from './pages/Invoices'
 import InvoiceDetail from './pages/InvoiceDetail'
+import InvoiceReceipt from './pages/InvoiceReceipt'
 import Purchases from './pages/Purchases'
 import PurchaseDetail from './pages/PurchaseDetail'
 import ReceivePayment from './pages/ReceivePayment'
@@ -80,6 +81,7 @@ function App() {
             <Route path="invoices" element={<Invoices />} />
             <Route path="invoices/new" element={<InvoiceDetail />} />
             <Route path="invoices/:id" element={<InvoiceDetail />} />
+            <Route path="invoices/:id/receipt" element={<InvoiceReceipt />} />
             <Route path="purchases" element={<Purchases />} />
             <Route path="purchases/new" element={<PurchaseDetail />} />
             <Route path="purchases/:id" element={<PurchaseDetail />} />

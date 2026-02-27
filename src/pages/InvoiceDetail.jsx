@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Save, Printer, UserPlus, FileDown, FileSpreadsheet } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ArrowLeft, Plus, Trash2, Save, Printer, UserPlus, FileDown, FileSpreadsheet, Receipt } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
 import { useClients } from '../hooks/useClients'
 import { useAccounts } from '../hooks/useAccounts'
@@ -236,7 +237,7 @@ const InvoiceDetail = () => {
       return
     }
     if (items.every((item) => !item.description)) {
-      toast.error('Please add at least one line item')
+      toast.error('Please add at least one line item with a description')
       return
     }
     const fxRate = Number(formData.fx_rate) || 1
@@ -366,6 +367,17 @@ const InvoiceDetail = () => {
             <FileDown className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">PDF</span>
           </Button>
+          {!isNew && Number(invoiceData?.amount_paid ?? 0) > 0.005 && (
+            <Link
+              to={`/dashboard/invoices/${id}/receipt`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center font-medium rounded-lg px-4 py-2 text-sm border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex-1 sm:flex-none"
+            >
+              <Receipt className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Print Receipt</span>
+            </Link>
+          )}
           <Button
             variant="outline"
             onClick={() => {

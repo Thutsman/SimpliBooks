@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Eye, Trash2, MoreVertical, Send, CheckCircle } from 'lucide-react'
+import { Plus, Eye, Trash2, MoreVertical, Send, CheckCircle, Receipt } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoices'
 import { useToast } from '../components/ui/Toast'
 import Button from '../components/ui/Button'
@@ -138,6 +138,18 @@ const Invoices = () => {
                   <CheckCircle className="w-4 h-4" />
                   Receive Payment
                 </button>
+              )}
+              {['paid', 'part_paid'].includes(row.status) && Number(row.amount_paid || 0) > 0.005 && (
+                <Link
+                  to={`/dashboard/invoices/${row.id}/receipt`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowActionsId(null)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full"
+                >
+                  <Receipt className="w-4 h-4" />
+                  Print Receipt
+                </Link>
               )}
               <p className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100 mt-1 pt-2">
                 Stock levels update when you mark as Sent.
