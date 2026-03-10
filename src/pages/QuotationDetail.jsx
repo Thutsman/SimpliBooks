@@ -108,7 +108,8 @@ const QuotationDetail = () => {
             description: item.description || '',
             quantity: item.quantity || 1,
             unit_price: Number(useFx && item.unit_price_fx != null ? item.unit_price_fx : item.unit_price) || 0,
-            vat_rate: Number(item.vat_rate) || 15,
+            // Preserve explicit 0% VAT; only fall back when missing
+            vat_rate: item.vat_rate != null ? Number(item.vat_rate) : defaultVatRate,
             account_id: item.account_id || '',
           }))
         )
